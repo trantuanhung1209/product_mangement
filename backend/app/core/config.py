@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     database_url: str | None = None
     database_pool_size: int = 5
     database_max_overflow: int = 10
+    redis_url: str | None = None
+    redis_connect_timeout_seconds: float = 1.0
+    redis_socket_timeout_seconds: float = 1.0
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
