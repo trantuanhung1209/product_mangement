@@ -72,3 +72,4 @@ Kết quả mong đợi:
 - [Phase 02 — REST API](docs/PHASE_02_LEARNING.md)
 - [Phase 03 — Product query](docs/PHASE_03_LEARNING.md)
 - [Phase 04 — Redis caching](docs/PHASE_04_LEARNING.md)
+- [Phase 05 — Frontend](docs/PHASE_05_LEARNING.md)
