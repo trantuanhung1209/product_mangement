@@ -70,3 +70,4 @@ Kết quả mong đợi:
 - [Phase 00B — Request lifecycle](docs/PHASE_00B_LEARNING.md)
 - [Phase 01 — Database](docs/PHASE_01_LEARNING.md)
 - [Phase 02 — REST API](docs/PHASE_02_LEARNING.md)
+- [Phase 03 — Product query](docs/PHASE_03_LEARNING.md)

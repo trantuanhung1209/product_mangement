@@ -1,7 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
 
 
 class ProductCreate(BaseModel):
@@ -69,3 +70,35 @@ class ProductResponse(BaseModel):
     image_url: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class ProductQuery(BaseModel):
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=10, ge=1, le=100)
+    search: str | None = None
+    category_id: int | None = Field(default=None, gt=0)
+    min_price: Decimal | None = Field(default=None, ge=0)
+    max_price: Decimal | None = Field(default=None, ge=0)
+    sort_by: Literal["id", "name", "price", "stock", "created_at"] = "created_at"
+    order: Literal["asc", "desc"] = "desc"
+
+    @field_validator("search")
+    @classmethod
+    def trim_search(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+    @model_validator(mode="after")
+    def minimum_price_must_not_exceed_maximum(self) -> "ProductQuery":
+        if self.min_price is not None and self.max_price is not None and self.min_price > self.max_price:
+            raise ValueError("min_price must be less than or equal to max_price.")
+        return self
+
+
+class ProductListResponse(BaseModel):
+    items: list[ProductResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
