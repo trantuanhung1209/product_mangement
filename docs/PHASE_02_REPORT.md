@@ -26,7 +26,7 @@ POST trả 201; GET/PUT/PATCH trả 200; DELETE trả 204 không body. Not found
 - `alembic -c backend/alembic.ini upgrade head`: PASS trên PostgreSQL test database.
 - `pytest backend/tests -q` với `TEST_DATABASE_URL`: PASS — 22 passed, 1 upstream TestClient warning.
 - API tests: category/product CRUD, PUT/PATCH, 422, duplicate 409, category missing 404, category FK conflict 409, rollback after duplicate, delete 204, JSON errors và prefix.
-- Runtime: `/health`, `/docs`, `/lab/success` đều HTTP 200. OpenAPI có đủ bốn API v1 paths; tổng 16 operations (bao gồm health/lab).
+- Runtime: `/health` và `/docs` đều HTTP 200. OpenAPI có đủ bốn API v1 paths.
 
 ## Những lỗi đã xử lý
 

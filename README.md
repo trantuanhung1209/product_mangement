@@ -1,6 +1,6 @@
 # Product Catalog
 
-Monorepo học FastAPI + React cho Product Catalog. Hiện tại chỉ hoàn thành **Phase 00 — Foundation**: một API health check và trang React kiểm tra kết nối thật tới API.
+Monorepo học FastAPI + React cho Product Catalog. Hiện tại đã hoàn thành foundation, database và REST API v1.
 
 ## Cấu trúc
 
@@ -15,6 +15,7 @@ product-catalog/
 ## Yêu cầu
 
 - macOS với Python 3.11+ và Node.js 20+
+- PostgreSQL đang chạy với database được cấu hình trong `DATABASE_URL`
 - `curl` (có sẵn trên macOS)
 
 ## Chạy trên macOS
@@ -25,6 +26,8 @@ product-catalog/
    cp .env.example .env
    ```
 
+   Cập nhật `DATABASE_URL` trong `.env` bằng thông tin PostgreSQL local trước khi chạy migration.
+
 2. Mở Terminal thứ nhất, chạy backend:
 
    ```bash
@@ -33,6 +36,7 @@ product-catalog/
    source .venv/bin/activate
    python -m pip install --upgrade pip
    python -m pip install -e ".[dev]"
+   alembic -c alembic.ini upgrade head
    uvicorn app.main:app --reload
    ```
 
@@ -60,4 +64,9 @@ Kết quả mong đợi:
 {"status":"ok","service":"product-catalog-api"}
 ```
 
-Xem [tài liệu Phase 00](docs/PHASE_00_FOUNDATION.md) để hiểu luồng và đối chiếu với NestJS.
+## Tài liệu học
+
+- [Phase 00 — Foundation](docs/PHASE_00_FOUNDATION.md)
+- [Phase 00B — Request lifecycle](docs/PHASE_00B_LEARNING.md)
+- [Phase 01 — Database](docs/PHASE_01_LEARNING.md)
+- [Phase 02 — REST API](docs/PHASE_02_LEARNING.md)
