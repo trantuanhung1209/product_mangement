@@ -1,6 +1,6 @@
 # Phase 00 — Verification Report
 
-**Ngày chạy:** 23/10/2026 (Asia/Ho_Chi_Minh)  
+**Ngày chạy:** 23/10/2026 (Asia/Ho_Chi_Minh)
 **Trạng thái:** PASS — phạm vi Phase 00 hoàn tất.
 
 ## Files created
@@ -50,7 +50,7 @@ Browser automation was attempted, but no browser surface was available in this e
 ## Git branch and commits
 
 - Branch: `feature/phase-00-foundation`
-- Commit: recorded after final status check in this report's implementation handoff.
+- Foundation commit: `d5f9041 feat: add phase 00 project foundation`
 
 ## Kiến thức cần hiểu trước Phase 01
 
