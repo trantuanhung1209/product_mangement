@@ -36,8 +36,8 @@ h1, h2, p { margin-top: 0; }
 .filter-controls { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1.3fr; gap: 10px; }
 .filter-controls label, .pagination label { display: grid; gap: 5px; color: #6b7280; font-size: 11px; font-weight: 600; }
 .filter-controls label > span { display: flex; align-items: center; gap: 5px; }
-select, input[type="number"] { width: 100%; min-height: 34px; padding: 0 9px; border: 1px solid #dfe3e8; border-radius: 7px; color: #354152; background: #fff; outline: none; transition: border-color 160ms ease, box-shadow 160ms ease; }
-select:focus, input[type="number"]:focus { border-color: #69a879; box-shadow: 0 0 0 3px #eaf4ec; }
+.filter-controls select, .filter-controls input, .pagination select { width: 100%; min-height: 34px; padding: 0 9px; border: 1px solid #dfe3e8; border-radius: 7px; color: #354152; background: #fff; outline: none; transition: border-color 160ms ease, box-shadow 160ms ease; }
+.filter-controls select:focus, .filter-controls input:focus, .pagination select:focus { border-color: #69a879; box-shadow: 0 0 0 3px #eaf4ec; }
 .clear-filters { min-height: 34px; padding: 0 9px; border: 0; color: #4e7a59; background: transparent; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .clear-filters:hover { color: #166534; text-decoration: underline; }
 

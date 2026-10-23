@@ -1,6 +1,6 @@
 # Product Catalog
 
-Monorepo học FastAPI + React cho Product Catalog. Hiện tại đã hoàn thành foundation, database và REST API v1.
+Monorepo học FastAPI + React cho Product Catalog. Hiện tại có REST API, truy vấn sản phẩm, Redis cache và giao diện danh sách sản phẩm.
 
 ## Cấu trúc
 
@@ -15,47 +15,114 @@ product-catalog/
 ## Yêu cầu
 
 - macOS với Python 3.11+ và Node.js 20+
-- PostgreSQL đang chạy với database được cấu hình trong `DATABASE_URL`
+- Docker Desktop đang chạy (để chạy PostgreSQL và Redis local)
 - `curl` (có sẵn trên macOS)
 
 ## Chạy trên macOS
 
-1. Tạo file environment tại thư mục gốc:
+### 1. Tạo PostgreSQL và Redis local
 
-   ```bash
-   cp .env.example .env
-   ```
+Chỉ chạy các lệnh `docker run` này một lần. PostgreSQL dùng named volume nên dữ liệu được giữ lại khi container dừng.
 
-   Cập nhật `DATABASE_URL` trong `.env` bằng thông tin PostgreSQL local trước khi chạy migration.
+```bash
+docker run -d \
+  --name product-catalog-postgres \
+  -e POSTGRES_USER=product_catalog \
+  -e POSTGRES_PASSWORD=product_catalog_dev \
+  -e POSTGRES_DB=product_catalog \
+  -p 5432:5432 \
+  -v product-catalog-postgres-data:/var/lib/postgresql/data \
+  postgres:16-alpine
 
-2. Mở Terminal thứ nhất, chạy backend:
+docker run -d \
+  --name product-catalog-redis \
+  -p 6379:6379 \
+  redis:7-alpine
+```
 
-   ```bash
-   cd backend
-   python3 -m venv .venv
-   source .venv/bin/activate
-   python -m pip install --upgrade pip
-   python -m pip install -e ".[dev]"
-   alembic -c alembic.ini upgrade head
-   uvicorn app.main:app --reload
-   ```
+Ở những lần sau, chỉ cần khởi động lại:
 
-   API ở `http://localhost:8000`, Swagger ở `http://localhost:8000/docs`.
+```bash
+docker start product-catalog-postgres product-catalog-redis
+```
 
-3. Mở Terminal thứ hai, chạy frontend:
+### 2. Cấu hình environment
 
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
+Tạo `.env` tại thư mục gốc:
 
-   Mở URL Vite in ra (mặc định `http://localhost:5173`). Trang Home tự gọi `GET /health`; nút **Kiểm tra lại kết nối** gọi lại API.
+```bash
+cp .env.example .env
+```
+
+Với hai container ở trên, `.env` cần có các giá trị sau:
+
+```env
+CORS_ORIGINS=["http://localhost:5173"]
+VITE_API_URL=http://localhost:8000
+
+DATABASE_URL=postgresql+psycopg://product_catalog:product_catalog_dev@localhost:5432/product_catalog
+DATABASE_POOL_SIZE=5
+DATABASE_MAX_OVERFLOW=10
+
+REDIS_URL=redis://localhost:6379/0
+REDIS_CONNECT_TIMEOUT_SECONDS=1
+REDIS_SOCKET_TIMEOUT_SECONDS=1
+```
+
+Không commit `.env`. Nếu Vite chạy tại port `5174`, đổi `CORS_ORIGINS` thành `http://localhost:5174` rồi restart backend.
+
+### 3. Chạy migration và backend
+
+Mở Terminal thứ nhất:
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+alembic -c alembic.ini upgrade head
+uvicorn app.main:app --reload
+```
+
+API ở `http://localhost:8000`, Swagger ở `http://localhost:8000/docs`.
+
+### 4. Tạo dữ liệu ban đầu
+
+Database mới sẽ chưa có sản phẩm. Vào Swagger `http://localhost:8000/docs`, gọi:
+
+1. `POST /api/v1/categories` để tạo danh mục.
+2. `POST /api/v1/products`, dùng `category_id` của danh mục vừa tạo.
+
+Ví dụ Product:
+
+```json
+{
+  "name": "Bàn phím cơ",
+  "description": "Bàn phím cho không gian làm việc",
+  "price": "89.99",
+  "stock": 10,
+  "category_id": 1
+}
+```
+
+### 5. Chạy frontend
+
+Mở Terminal thứ hai:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Mở URL Vite in ra (mặc định `http://localhost:5173`), sau đó vào `/products` để xem danh sách.
 
 ## Kiểm tra nhanh
 
 ```bash
 curl http://localhost:8000/health
+curl http://localhost:8000/api/v1/products
 ```
 
 Kết quả mong đợi:
@@ -63,6 +130,8 @@ Kết quả mong đợi:
 ```json
 {"status":"ok","service":"product-catalog-api"}
 ```
+
+Nếu API Products trả `total: 0`, hãy tạo dữ liệu theo bước 4. Nếu backend không chạy, kiểm tra `docker ps` và chạy lại migration trước.
 
 ## Tài liệu học
 

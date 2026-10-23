@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isAxiosError } from "axios";
 import { useSearchParams } from "react-router-dom";
 
@@ -46,6 +46,7 @@ export function ProductsPage() {
   const query = useMemo(() => parseQuery(searchParams), [searchParams]);
   const [searchInput, setSearchInput] = useState(query.search ?? "");
   const debouncedSearch = useDebounce(searchInput);
+  const searchWasCleared = useRef(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const { data, error, loading, retry } = useProducts(query);
 
@@ -61,6 +62,8 @@ export function ProductsPage() {
   useEffect(() => setSearchInput(query.search ?? ""), [query.search]);
 
   useEffect(() => {
+    if (searchWasCleared.current && debouncedSearch !== "") return;
+    if (debouncedSearch === "") searchWasCleared.current = false;
     if (debouncedSearch.trim() !== (query.search ?? "")) updateParams({ search: debouncedSearch.trim() || undefined });
   }, [debouncedSearch, query.search, updateParams]);
 
@@ -74,10 +77,13 @@ export function ProductsPage() {
     return () => controller.abort();
   }, []);
 
-  const handleChange = (changes: Record<string, string | undefined>, resetPage = true) => {
-    if ("search" in changes && changes.search === undefined) setSearchInput("");
+  const handleChange = useCallback((changes: Record<string, string | undefined>, resetPage = true) => {
+    if ("search" in changes && changes.search === undefined) {
+      searchWasCleared.current = true;
+      setSearchInput("");
+    }
     updateParams(changes, resetPage);
-  };
+  }, [updateParams]);
   const hasFilters = Boolean(query.search || query.category_id || query.min_price || query.max_price || query.sort_by !== "created_at" || query.order !== "desc");
 
   return <>
