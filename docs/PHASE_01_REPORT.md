@@ -16,7 +16,7 @@
 - `alembic -c backend/alembic.ini upgrade head`: PASS trên PostgreSQL test container.
 - `pytest backend/tests -q` với `TEST_DATABASE_URL`: PASS — 16 passed, 1 warning upstream `TestClient`.
 - Schema query trực tiếp xác nhận hai tables, `numeric(10,2)`, `timestamp with time zone`, unique name và FK `ON DELETE RESTRICT`.
-- Phase 00/00B tests nằm trong suite và vẫn pass; runtime `/health`, `/docs`, `/lab/success` đều trả HTTP 200 khi lab bật.
+- Phase 00/00B tests nằm trong suite và vẫn pass; runtime `/health` và `/docs` đều trả HTTP 200.
 
 ## Kết quả 4 thí nghiệm
 
