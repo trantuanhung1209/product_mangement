@@ -53,6 +53,23 @@ export interface ProductPayload {
   image_url: string | null;
 }
 
+export interface CartItem {
+  product_id: number;
+  name: string;
+  image_url: string | null;
+  unit_price: string;
+  quantity: number;
+  line_total: string;
+  available_stock: number;
+  is_available: boolean;
+}
+
+export interface Cart {
+  items: CartItem[];
+  total_quantity: number;
+  subtotal: string;
+}
+
 export interface AuthUser {
   id: number;
   email: string;

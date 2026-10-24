@@ -221,7 +221,23 @@ npm run build
 1. Khởi động infrastructure bằng `docker compose -f infra/compose.yml up -d` ở bước 1.
 2. Chạy `alembic -c alembic.ini upgrade head`, rồi `uvicorn app.main:app --reload`.
 3. Chạy `python -m scripts.seed` nếu cần dữ liệu mẫu.
-4. Chạy `npm run dev` trong `frontend`.
+4. Chạy `npm run dev` trong `frontend`; storefront ở `/`, `/shop`, `/shop/:id`
+   và giỏ hàng ở `/cart`.
+
+## Giỏ hàng
+
+Giỏ hàng yêu cầu đăng nhập, dùng cookie HttpOnly hiện có và CSRF header do Axios
+tự thêm. Backend là source of truth; refresh browser hoặc login lại cùng tài
+khoản sẽ đọc lại cart từ PostgreSQL.
+
+- `GET /api/v1/cart`: cart hiện tại, gồm tổng số lượng và tạm tính.
+- `POST /api/v1/cart/items`: thêm `{ "product_id": 1, "quantity": 1 }`.
+- `PATCH /api/v1/cart/items/{product_id}`: đổi `{ "quantity": 2 }`.
+- `DELETE /api/v1/cart/items/{product_id}`: xóa một sản phẩm.
+- `DELETE /api/v1/cart`: xóa toàn bộ sản phẩm trong cart.
+
+Các mutation yêu cầu authenticated session và `X-CSRF-Token`; không gửi price
+từ frontend. Migration Cart là `20261024_05`, chạy bằng `alembic upgrade head`.
 
 ## Kiểm tra nhanh
 
@@ -253,3 +269,4 @@ Nếu API Products trả `total: 0`, hãy tạo dữ liệu theo bước 4. Nế
 - [Phase 08B — Refresh token & Redis session](docs/PHASE_08B_LEARNING.md)
 - [Phase 08C — Session management](docs/PHASE_08C_LEARNING.md)
 - [Phase 09 — Image processing](docs/PHASE_09_LEARNING.md)
+- [Phase 11 — Shopping Cart](docs/PHASE_11_LEARNING.md)

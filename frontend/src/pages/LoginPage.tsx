@@ -13,8 +13,12 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const requestedPath = (location.state as { from?: string } | null)?.from;
+  const safePublicPath = requestedPath?.startsWith("/") && !requestedPath.startsWith("//") && !requestedPath.startsWith("/admin")
+    ? requestedPath
+    : "/shop";
   if (user)
-    return <Navigate to={user.role === "ADMIN" ? "/admin/products" : "/shop"} replace />;
+    return <Navigate to={user.role === "ADMIN" ? requestedPath ?? "/admin/products" : safePublicPath} replace />;
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
@@ -23,8 +27,8 @@ export function LoginPage() {
       const authenticatedUser = await login(email, password);
       navigate(
         authenticatedUser.role === "ADMIN"
-          ? (location.state as { from?: string } | null)?.from ?? "/admin/products"
-          : "/shop",
+          ? requestedPath ?? "/admin/products"
+          : safePublicPath,
         { replace: true },
       );
     } catch (requestError) {

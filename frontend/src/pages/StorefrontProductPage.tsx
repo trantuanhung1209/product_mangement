@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { isAxiosError } from "axios";
-import { ArrowLeft, ArrowRight, ImageOff, PackageCheck } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { ArrowLeft, ArrowRight, ImageOff, PackageCheck, ShoppingCart } from "lucide-react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { getCategories } from "../api/categories";
 import { apiAssetUrl } from "../api/client";
 import { getProduct } from "../api/products";
+import { useAuth } from "../auth/AuthContext";
+import { useCart } from "../cart/CartContext";
+import { QuantityControl } from "../components/storefront/QuantityControl";
+import { useToast } from "../components/feedback/Toast";
 import type { Category, Product } from "../types/catalog";
 import { formatPrice } from "../utils/format";
 
@@ -14,6 +18,13 @@ export function StorefrontProductPage() {
   const [product, setProduct] = useState<Product>();
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [adding, setAdding] = useState(false);
+  const { user } = useAuth();
+  const { addItem } = useCart();
+  const { showToast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
   const productIdNumber = Number(productId);
 
   useEffect(() => {
@@ -32,6 +43,7 @@ export function StorefrontProductPage() {
         if (!isCurrent) return;
         setProduct(productResponse.data);
         setCategories(categoriesResponse.data);
+        setQuantity(1);
       })
       .catch((requestError: unknown) => {
         if (
@@ -63,6 +75,21 @@ export function StorefrontProductPage() {
   const categoryName =
     categories.find((category) => category.id === product.category_id)?.name ??
     "Danh mục sản phẩm";
+  const addToCart = async () => {
+    if (!user) {
+      navigate("/login", { state: { from: `${location.pathname}${location.search}` } });
+      return;
+    }
+    setAdding(true);
+    try {
+      await addItem(product.id, quantity);
+      showToast(`Đã thêm ${quantity} ${product.name} vào giỏ hàng.`);
+    } catch (requestError) {
+      showToast(requestError instanceof Error ? requestError.message : "Không thể thêm vào giỏ hàng.", "error");
+    } finally {
+      setAdding(false);
+    }
+  };
   return (
     <section className="storefront-container store-product-detail">
       <nav className="store-breadcrumb" aria-label="Breadcrumb">
@@ -108,7 +135,14 @@ export function StorefrontProductPage() {
                 "Thông tin chi tiết sẽ được cập nhật trong catalog."}
             </p>
           </div>
-          <Link className="store-primary" to="/shop">
+          <div className="store-detail-cart">
+            <QuantityControl value={quantity} max={Math.max(1, product.stock)} disabled={adding || product.stock <= 0} onChange={setQuantity} />
+            <button className="store-primary" type="button" onClick={addToCart} disabled={adding || product.stock <= 0}>
+              <ShoppingCart size={17} aria-hidden="true" />
+              {adding ? "Đang thêm..." : "Thêm vào giỏ"}
+            </button>
+          </div>
+          <Link className="store-secondary" to="/shop">
             Tiếp tục khám phá <ArrowRight size={17} aria-hidden="true" />
           </Link>
         </div>
