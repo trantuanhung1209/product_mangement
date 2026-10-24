@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, ChevronLeft, ChevronRight, Leaf, PackageSearch, Pause, Play, ShieldCheck } from "lucide-react";
+import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, House, Laptop, Leaf, PackageSearch, Pause, PenLine, Play, ShieldCheck, Shirt, ShoppingBag, Smartphone } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { getCategories } from "../api/categories";
@@ -16,6 +16,7 @@ const heroSlides = [
   { image: heroImageTwo, title: "Những món thiết thực, được chọn gọn gàng.", description: "Từ đồ dùng cá nhân đến sản phẩm cho góc làm việc, tất cả ở cùng một nơi." },
   { image: heroImageThree, title: "Khám phá một nhịp sống xanh hơn.", description: "Tìm kiếm nhanh theo danh mục và xem sản phẩm mới trong catalog của bạn." },
 ];
+const categoryIcons = [Laptop, House, PenLine, Smartphone, ShoppingBag, Shirt];
 
 export function StorefrontHomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -33,7 +34,7 @@ export function StorefrontHomePage() {
   return <>
     <HeroCarousel />
     <section className="store-benefits"><div className="storefront-container"><div><ShieldCheck size={20} aria-hidden="true" /><span>Dữ liệu sản phẩm cập nhật từ API</span></div><div><Leaf size={20} aria-hidden="true" /><span>Ảnh WebP tối ưu cho trải nghiệm duyệt nhanh</span></div><div><PackageSearch size={20} aria-hidden="true" /><span>Tìm kiếm theo nhu cầu của bạn</span></div></div></section>
-    <section className="store-section storefront-container"><h2>Chọn theo danh mục</h2><p className="store-section-intro">Bắt đầu từ nhóm sản phẩm phù hợp nhất với bạn.</p><div className="store-category-grid">{categories.slice(0, 6).map((category) => <Link key={category.id} to={`/shop?category_id=${category.id}`}><span>{category.name}</span><ArrowRight size={17} aria-hidden="true" /></Link>)}</div></section>
+    <section className="store-section storefront-container"><div className="store-category-heading"><div><h2>Chọn theo danh mục</h2><p className="store-section-intro">Bắt đầu từ nhóm sản phẩm phù hợp nhất với bạn.</p></div><Link to="/shop">Xem toàn bộ catalog <ArrowRight size={17} aria-hidden="true" /></Link></div><div className="store-category-grid">{categories.slice(0, 6).map((category, index) => { const Icon = categoryIcons[index % categoryIcons.length]; return <Link key={category.id} to={`/shop?category_id=${category.id}`}><span className="store-category-icon"><Icon size={22} aria-hidden="true" /></span><span className="store-category-copy"><strong>{category.name}</strong><span>Xem sản phẩm</span></span><ArrowUpRight className="store-category-arrow" size={20} aria-hidden="true" /></Link>; })}</div></section>
     <section id="featured" className="store-section storefront-container"><div className="store-section-heading"><div><h2>Sản phẩm mới trong catalog</h2><p className="store-section-intro">Duyệt sản phẩm thật và xem chi tiết trước khi lựa chọn.</p></div><Link to="/shop">Xem tất cả <ArrowRight size={17} aria-hidden="true" /></Link></div>{error ? <div className="store-state"><p>Không thể tải sản phẩm lúc này.</p><button type="button" onClick={retry}>Thử lại</button></div> : <div className="store-product-grid" aria-busy={loading}>{loading ? <StorefrontSkeleton /> : products.map((product) => <StoreProductCard key={product.id} product={product} categoryName={categoryNames.get(product.category_id)} />)}</div>}</section>
   </>;
 }
