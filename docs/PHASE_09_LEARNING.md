@@ -14,7 +14,7 @@ PostgreSQL chỉ lưu object key, width và height; binary WebP nằm trong MinI
 bucket. Route public `/products/{id}/image` đọc object rồi trả `image/webp`, nên
 frontend không giữ MinIO credentials. Khi thay ảnh: object mới upload trước,
 commit DB sau; commit lỗi sẽ xóa object mới. Object cũ xóa lỗi không làm Product
-trỏ đến ảnh mới bị mất; việc dọn orphan cần retry worker khi hệ thống lớn hơn.
+trỏ đến ảnh mới bị mất; task cleanup được lưu trong PostgreSQL để retry thủ công.
 
 ## Flow upload ảnh mới
 
@@ -45,6 +45,26 @@ route rollback rồi xóa object mới để tránh orphan. Nếu xóa ảnh cũ
 commit, Product vẫn trỏ tới ảnh mới hợp lệ; ảnh cũ là orphan cần được dọn lại,
 không được làm request upload thất bại hay quay metadata về ảnh cũ.
 
+## Orphan cleanup bền vững
+
+Trước khi commit replace, delete ảnh hoặc xóa Product, backend tạo một record
+`image_cleanup_tasks` trong **cùng transaction**. Vì vậy không có khoảng trống
+giữa lúc Product không còn tham chiếu object và lúc task cần retry bị mất. Sau
+commit, `run_image_cleanup()` kiểm tra lại `products.image_object_key`; nếu object
+đã được tham chiếu thì bỏ task, còn không thì xóa object và task. MinIO lỗi chỉ
+giữ task lại, không biến mutation đã commit thành lỗi với frontend.
+
+```bash
+cd backend
+python -m scripts.cleanup_orphan_images --dry-run
+python -m scripts.cleanup_orphan_images
+```
+
+Command không quét bucket. Nó idempotent: object đã mất được xem là đã dọn; retry
+nhiều lần không làm mất ảnh đang được Product tham chiếu. UUID key mới cho mỗi
+lần upload và lock Product khi mutation giảm race replace/cleanup; nếu sau này có
+dịch vụ khác được phép gắn lại object key cũ, cần bổ sung distributed lock/outbox.
+
 ## Flow xóa ảnh
 
 Admin gọi `DELETE /api/v1/products/{id}/image`. Backend xóa metadata khỏi Product
@@ -65,3 +85,20 @@ Compose map S3 API sang `127.0.0.1:9010`; backend local dùng
 `MINIO_ENDPOINT=127.0.0.1:9010`, không dùng Console port `9011`. Object storage
 dùng named volume để giữ ảnh khi restart. MinIO tạo bucket khi upload đầu tiên;
 bucket không có policy public, nên public access chỉ qua FastAPI proxy.
+
+## Kiểm chứng local
+
+Chạy `docker compose -f infra/compose.yml up -d`, kiểm tra `docker compose -f
+infra/compose.yml ps` phải báo healthy. Integration test dùng PostgreSQL test
+database và Redis database 15 theo README, nhưng upload thật vào MinIO tại 9010:
+
+```bash
+cd backend
+export TEST_DATABASE_URL='postgresql+psycopg://product_catalog:product_catalog_dev@localhost:5432/product_catalog_test'
+export TEST_REDIS_URL='redis://localhost:6379/15'
+pytest
+```
+
+Test kiểm tra ADMIN upload JPEG/PNG/WebP, public proxy, replace/delete, cùng
+Anonymous/USER/CSRF/Origin. Browser E2E vẫn nên kiểm tra thủ công vì pytest không
+render giao diện React.

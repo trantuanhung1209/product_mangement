@@ -15,36 +15,26 @@ product-catalog/
 ## Yêu cầu
 
 - macOS với Python 3.11+ và Node.js 20+
-- Docker Desktop đang chạy (để chạy PostgreSQL và Redis local)
+- Docker Desktop đang chạy (để chạy PostgreSQL, Redis và MinIO local)
 - `curl` (có sẵn trên macOS)
 
 ## Chạy trên macOS
 
-### 1. Tạo PostgreSQL và Redis local
+### 1. Chạy PostgreSQL, Redis và MinIO
 
-Chỉ chạy các lệnh `docker run` này một lần. PostgreSQL dùng named volume nên dữ liệu được giữ lại khi container dừng.
-
-```bash
-docker run -d \
-  --name product-catalog-postgres \
-  -e POSTGRES_USER=product_catalog \
-  -e POSTGRES_PASSWORD=product_catalog_dev \
-  -e POSTGRES_DB=product_catalog \
-  -p 5432:5432 \
-  -v product-catalog-postgres-data:/var/lib/postgresql/data \
-  postgres:16-alpine
-
-docker run -d \
-  --name product-catalog-redis \
-  -p 6379:6379 \
-  redis:7-alpine
-```
-
-Ở những lần sau, chỉ cần khởi động lại:
+Compose chỉ chạy infrastructure local; backend và frontend vẫn chạy trực tiếp trên macOS.
+Tạo file secret cục bộ, đồng thời đảm bảo giá trị PostgreSQL/MinIO khớp với `.env` ở root:
 
 ```bash
-docker start product-catalog-postgres product-catalog-redis
+cp infra/.env.example infra/.env
+# Sửa password trong infra/.env trước khi dùng ngoài môi trường học tập.
+docker volume create product-catalog-postgres-data
+docker compose -f infra/compose.yml up -d
+docker compose -f infra/compose.yml ps
 ```
+
+S3 API MinIO là `127.0.0.1:9010`; MinIO Console là `http://127.0.0.1:9011`.
+Không chạy `docker compose down -v`: named volumes giữ database và object ảnh giữa các lần restart.
 
 ### 2. Cấu hình environment
 
@@ -67,6 +57,12 @@ DATABASE_MAX_OVERFLOW=10
 REDIS_URL=redis://localhost:6379/0
 REDIS_CONNECT_TIMEOUT_SECONDS=1
 REDIS_SOCKET_TIMEOUT_SECONDS=1
+
+MINIO_ENDPOINT=127.0.0.1:9010
+MINIO_ACCESS_KEY=product_catalog_minio
+MINIO_SECRET_KEY=product_catalog_minio_dev
+MINIO_BUCKET=product-images
+MINIO_SECURE=false
 
 JWT_SECRET_KEY=generate_a_random_32_byte_secret
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
@@ -140,6 +136,17 @@ Thiết lập `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` và
 `MINIO_BUCKET` trong `.env`, rồi chạy migration mới nhất. ADMIN có thể chọn JPEG,
 PNG hoặc WebP tối đa 5 MB trong form sản phẩm; backend chuẩn hóa thành WebP trong
 bucket private. Public client chỉ đọc ảnh qua `/api/v1/products/{id}/image`.
+Khi replace/delete ảnh, backend ghi task cleanup trong PostgreSQL cùng transaction
+Product, rồi mới thử xóa object. Nếu MinIO đang lỗi, chạy lại thủ công:
+
+```bash
+cd backend
+python -m scripts.cleanup_orphan_images --dry-run
+python -m scripts.cleanup_orphan_images
+```
+
+`--dry-run` không xóa gì. Command chỉ xét object key đã được ghi thành task, và
+kiểm tra lại Product trước khi xóa; nó không quét hay xóa mù toàn bộ bucket.
 
 ### 4. Tạo dữ liệu mẫu
 
@@ -201,7 +208,7 @@ npm run build
 
 ## Chạy toàn bộ local
 
-1. Khởi động PostgreSQL/Redis bằng `docker start` ở bước 1.
+1. Khởi động infrastructure bằng `docker compose -f infra/compose.yml up -d` ở bước 1.
 2. Chạy `alembic -c alembic.ini upgrade head`, rồi `uvicorn app.main:app --reload`.
 3. Chạy `python -m scripts.seed` nếu cần dữ liệu mẫu.
 4. Chạy `npm run dev` trong `frontend`.

@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 from urllib.parse import urlencode
 
@@ -18,10 +19,19 @@ from app.core.cache import (
 from app.db.database import get_db
 from app.schemas.product import ProductCreate, ProductListResponse, ProductPatch, ProductQuery, ProductResponse, ProductUpdate
 from app.services import product as product_service
-from app.services.image import delete_image, get_image, process_image, upload_image
+from app.services.image import delete_image, get_image, process_image, queue_image_cleanup, run_image_cleanup, upload_image
 
 
 router = APIRouter(prefix="/products", tags=["products"])
+logger = logging.getLogger("app.image")
+
+
+def cleanup_pending_images(db: Session) -> None:
+    try:
+        run_image_cleanup(db)
+    except Exception:
+        db.rollback()
+        logger.warning("Image cleanup deferred after product transaction", exc_info=True)
 
 
 @router.get("/{product_id}/image")
@@ -37,11 +47,13 @@ async def upload_product_image(
     product_id: int, file: UploadFile = File(...), db: Session = Depends(get_db),
     redis: Redis | None = Depends(get_redis), _: object = Depends(require_admin_with_csrf),
 ) -> ProductResponse:
+    product = product_service.get_product_for_update_or_404(db, product_id)
     data = await file.read(5 * 1024 * 1024 + 1)
     processed, width, height = process_image(data)
     new_key = upload_image(processed)
-    product = product_service.get_product_or_404(db, product_id)
     old_key = product.image_object_key
+    if old_key:
+        queue_image_cleanup(db, old_key)
     product.image_object_key, product.image_width, product.image_height = new_key, width, height
     product.image_url = f"/api/v1/products/{product.id}/image"
     try:
@@ -49,10 +61,12 @@ async def upload_product_image(
         db.refresh(product)
     except Exception:
         db.rollback()
-        delete_image(new_key)
+        if not delete_image(new_key):
+            queue_image_cleanup(db, new_key)
+            db.commit()
         raise HTTPException(status_code=500, detail="Product image could not be saved.") from None
     if old_key:
-        delete_image(old_key)
+        cleanup_pending_images(db)
     invalidate_product_list_cache(redis)
     invalidate_product_detail_cache(redis)
     return ProductResponse.model_validate(product)
@@ -63,13 +77,15 @@ def delete_product_image(
     product_id: int, db: Session = Depends(get_db), redis: Redis | None = Depends(get_redis),
     _: object = Depends(require_admin_with_csrf),
 ) -> Response:
-    product = product_service.get_product_or_404(db, product_id)
+    product = product_service.get_product_for_update_or_404(db, product_id)
     old_key = product.image_object_key
+    if old_key:
+        queue_image_cleanup(db, old_key)
     product.image_object_key = product.image_url = None
     product.image_width = product.image_height = None
     db.commit()
     if old_key:
-        delete_image(old_key)
+        cleanup_pending_images(db)
     invalidate_product_list_cache(redis)
     invalidate_product_detail_cache(redis)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -159,7 +175,9 @@ def delete_product(
     redis: Redis | None = Depends(get_redis),
     _: object = Depends(require_admin_with_csrf),
 ) -> Response:
-    product_service.delete_product(db, product_id)
+    old_key = product_service.delete_product(db, product_id)
+    if old_key:
+        cleanup_pending_images(db)
     invalidate_product_list_cache(redis)
     invalidate_product_detail_cache(redis)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
