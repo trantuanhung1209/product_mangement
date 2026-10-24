@@ -1,17 +1,15 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 
-import { Header } from "./components/Header";
-import { HomePage } from "./pages/HomePage";
+import { AppShell } from "./components/layout/AppShell";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { ProductsPage } from "./pages/ProductsPage";
 
 export function App() {
   return (
-    <>
-      <Header />
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </>
+    <Routes>
+      <Route path="/" element={<Navigate to="/products" replace />} />
+      <Route path="/products" element={<AppShell><ProductsPage /></AppShell>} />
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
   );
 }
