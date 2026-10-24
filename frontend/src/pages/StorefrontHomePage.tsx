@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, House, Laptop, Leaf, PackageSearch, Pause, PenLine, Play, ShieldCheck, Shirt, ShoppingBag, Smartphone } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -8,9 +8,9 @@ import heroImageTwo from "../assets/store-hero-02.webp";
 import heroImageThree from "../assets/store-hero-03.webp";
 import { StoreProductCard } from "../components/storefront/StoreProductCard";
 import { useProducts } from "../hooks/useProducts";
-import type { Category } from "../types/catalog";
+import type { Category, Product } from "../types/catalog";
 
-const featuredQuery = { page: 1, page_size: 3, sort_by: "created_at" as const, order: "desc" as const };
+const featuredQuery = { page: 1, page_size: 8, sort_by: "created_at" as const, order: "desc" as const };
 const heroSlides = [
   { image: heroImageOne, title: "Chọn sản phẩm theo cách của bạn.", description: "Duyệt catalog, xem thông tin thật và tìm lựa chọn phù hợp cho mỗi ngày." },
   { image: heroImageTwo, title: "Những món thiết thực, được chọn gọn gàng.", description: "Từ đồ dùng cá nhân đến sản phẩm cho góc làm việc, tất cả ở cùng một nơi." },
@@ -35,7 +35,7 @@ export function StorefrontHomePage() {
     <HeroCarousel />
     <section className="store-benefits"><div className="storefront-container"><div><ShieldCheck size={20} aria-hidden="true" /><span>Dữ liệu sản phẩm cập nhật từ API</span></div><div><Leaf size={20} aria-hidden="true" /><span>Ảnh WebP tối ưu cho trải nghiệm duyệt nhanh</span></div><div><PackageSearch size={20} aria-hidden="true" /><span>Tìm kiếm theo nhu cầu của bạn</span></div></div></section>
     <section className="store-section storefront-container"><div className="store-category-heading"><div><h2>Chọn theo danh mục</h2><p className="store-section-intro">Bắt đầu từ nhóm sản phẩm phù hợp nhất với bạn.</p></div><Link to="/shop">Xem toàn bộ catalog <ArrowRight size={17} aria-hidden="true" /></Link></div><div className="store-category-grid">{categories.slice(0, 6).map((category, index) => { const Icon = categoryIcons[index % categoryIcons.length]; return <Link key={category.id} to={`/shop?category_id=${category.id}`}><span className="store-category-icon"><Icon size={22} aria-hidden="true" /></span><span className="store-category-copy"><strong>{category.name}</strong><span>Xem sản phẩm</span></span><ArrowUpRight className="store-category-arrow" size={20} aria-hidden="true" /></Link>; })}</div></section>
-    <section id="featured" className="store-section storefront-container"><div className="store-section-heading"><div><h2>Sản phẩm mới trong catalog</h2><p className="store-section-intro">Duyệt sản phẩm thật và xem chi tiết trước khi lựa chọn.</p></div><Link to="/shop">Xem tất cả <ArrowRight size={17} aria-hidden="true" /></Link></div>{error ? <div className="store-state"><p>Không thể tải sản phẩm lúc này.</p><button type="button" onClick={retry}>Thử lại</button></div> : <div className="store-product-grid" aria-busy={loading}>{loading ? <StorefrontSkeleton /> : products.map((product) => <StoreProductCard key={product.id} product={product} categoryName={categoryNames.get(product.category_id)} />)}</div>}</section>
+    <section id="featured" className="store-section storefront-container"><div className="store-section-heading"><div><h2>Sản phẩm mới trong catalog</h2><p className="store-section-intro">Duyệt sản phẩm thật và xem chi tiết trước khi lựa chọn.</p></div><Link to="/shop">Xem tất cả <ArrowRight size={17} aria-hidden="true" /></Link></div>{error ? <div className="store-state"><p>Không thể tải sản phẩm lúc này.</p><button type="button" onClick={retry}>Thử lại</button></div> : loading ? <div className="store-product-grid" aria-busy="true"><StorefrontSkeleton /></div> : <FeaturedProductCarousel products={products} categoryNames={categoryNames} />}</section>
   </>;
 }
 
@@ -71,5 +71,21 @@ function HeroCarousel() {
 }
 
 function StorefrontSkeleton() {
-  return <><div className="store-skeleton" /><div className="store-skeleton" /><div className="store-skeleton" /></>;
+  return <><div className="store-skeleton" /><div className="store-skeleton" /><div className="store-skeleton" /><div className="store-skeleton" /></>;
+}
+
+function FeaturedProductCarousel({ products, categoryNames }: { categoryNames: Map<number, string>; products: Product[] }) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const canNavigate = products.length > 4;
+  const move = (direction: "next" | "previous") => {
+    const viewport = viewportRef.current;
+    const card = viewport?.querySelector<HTMLElement>(".featured-carousel-card");
+    if (!viewport || !card) return;
+    const step = viewport.clientWidth;
+    const atStart = viewport.scrollLeft <= 1;
+    const atEnd = viewport.scrollLeft + viewport.clientWidth >= viewport.scrollWidth - 1;
+    viewport.scrollTo({ left: direction === "next" ? (atEnd ? 0 : viewport.scrollLeft + step) : (atStart ? viewport.scrollWidth : viewport.scrollLeft - step), behavior: "smooth" });
+  };
+
+  return <div className="featured-carousel" aria-label="Sản phẩm mới"><div ref={viewportRef} className="featured-carousel-viewport">{products.map((product) => <div key={product.id} className="featured-carousel-card"><StoreProductCard product={product} categoryName={categoryNames.get(product.category_id)} /></div>)}</div>{canNavigate && <div className="featured-carousel-controls"><button type="button" onClick={() => move("previous")} aria-label="Sản phẩm trước"><ChevronLeft size={18} aria-hidden="true" /></button><button type="button" onClick={() => move("next")} aria-label="Sản phẩm tiếp theo"><ChevronRight size={18} aria-hidden="true" /></button></div>}</div>;
 }
