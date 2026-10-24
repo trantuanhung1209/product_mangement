@@ -99,6 +99,7 @@ h1, h2, p { margin-top: 0; }
 .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: #69a879; box-shadow: 0 0 0 3px #eaf4ec; }
 .form-field [aria-invalid="true"] { border-color: #c65a4d; }
 .field-error, .form-error { color: #a33629; font-size: 12px; font-weight: 600; line-height: 1.45; }
+.field-helper { color: #8b949f; font-size: 11px; font-weight: 500; }
 .field-error { margin-top: -1px; }
 .form-error { margin-bottom: 18px; padding: 10px 12px; border-radius: 8px; background: #fff0ed; }
 .form-actions, .detail-actions, .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }

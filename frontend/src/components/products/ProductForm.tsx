@@ -3,6 +3,7 @@ import { isAxiosError } from "axios";
 
 import { getApiFieldErrors } from "../../api/errors";
 import type { Category, Product, ProductPayload } from "../../types/catalog";
+import { formatNumber } from "../../utils/format";
 
 type FieldName = keyof ProductPayload;
 type FormErrors = Partial<Record<FieldName, string>>;
@@ -54,6 +55,7 @@ const fieldLabels: Record<FieldName, string> = {
 
 export function ProductForm({ categories, initialProduct, onCancel, onSubmit, submitLabel }: ProductFormProps) {
   const [values, setValues] = useState<ProductPayload>(() => initialValues(initialProduct));
+  const [priceInput, setPriceInput] = useState(() => values.price ? formatNumber(values.price) : "");
   const [errors, setErrors] = useState<FormErrors>({});
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -69,6 +71,12 @@ export function ProductForm({ categories, initialProduct, onCancel, onSubmit, su
   const validateField = (field: FieldName) => {
     const fieldError = validate(values)[field];
     setErrors((current) => ({ ...current, [field]: fieldError }));
+  };
+
+  const updatePrice = (input: string) => {
+    const price = input.replace(/\D/g, "");
+    updateValue("price", price);
+    setPriceInput(price ? formatNumber(price) : "");
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -103,7 +111,7 @@ export function ProductForm({ categories, initialProduct, onCancel, onSubmit, su
     {formError && <p className="form-error" role="alert">{formError}</p>}
     <div className="form-grid">
       <label className="form-field form-field-wide">Tên sản phẩm <span aria-hidden="true">*</span><input value={values.name} onChange={(event) => updateValue("name", event.target.value)} onBlur={() => validateField("name")} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "name-error" : undefined} autoFocus />{errors.name && <small id="name-error" className="field-error" role="alert">{errors.name}</small>}</label>
-      <label className="form-field">Giá bán (VNĐ) <span aria-hidden="true">*</span><input type="text" inputMode="decimal" value={values.price} onChange={(event) => updateValue("price", event.target.value)} onBlur={() => validateField("price")} aria-invalid={Boolean(errors.price)} aria-describedby={errors.price ? "price-error" : undefined} />{errors.price && <small id="price-error" className="field-error" role="alert">{errors.price}</small>}</label>
+      <label className="form-field">Giá bán (VNĐ) <span aria-hidden="true">*</span><input type="text" inputMode="numeric" value={priceInput} onChange={(event) => updatePrice(event.target.value)} onBlur={() => validateField("price")} aria-invalid={Boolean(errors.price)} aria-describedby={errors.price ? "price-error" : "price-help"} placeholder="Ví dụ: 899.000" />{errors.price ? <small id="price-error" className="field-error" role="alert">{errors.price}</small> : <small id="price-help" className="field-helper">Dấu chấm được thêm tự động.</small>}</label>
       <label className="form-field">Số lượng tồn kho <span aria-hidden="true">*</span><input type="number" min="0" step="1" value={values.stock} onChange={(event) => updateValue("stock", Number(event.target.value))} onBlur={() => validateField("stock")} aria-invalid={Boolean(errors.stock)} aria-describedby={errors.stock ? "stock-error" : undefined} />{errors.stock && <small id="stock-error" className="field-error" role="alert">{errors.stock}</small>}</label>
       <label className="form-field">Danh mục <span aria-hidden="true">*</span><select value={values.category_id || ""} onChange={(event) => updateValue("category_id", Number(event.target.value))} onBlur={() => validateField("category_id")} aria-invalid={Boolean(errors.category_id)} aria-describedby={errors.category_id ? "category-error" : undefined}><option value="">Chọn danh mục</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>{errors.category_id && <small id="category-error" className="field-error" role="alert">{errors.category_id}</small>}</label>
       <label className="form-field">URL hình ảnh <span className="optional">(không bắt buộc)</span><input type="url" inputMode="url" placeholder="https://example.com/image.jpg" value={values.image_url ?? ""} onChange={(event) => updateValue("image_url", event.target.value || null)} onBlur={() => validateField("image_url")} aria-invalid={Boolean(errors.image_url)} aria-describedby={errors.image_url ? "image-url-error" : undefined} />{errors.image_url && <small id="image-url-error" className="field-error" role="alert">{errors.image_url}</small>}</label>
