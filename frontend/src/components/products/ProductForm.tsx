@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { isAxiosError } from "axios";
 
+import { apiAssetUrl } from "../../api/client";
 import { getApiFieldErrors } from "../../api/errors";
 import type { Category, Product, ProductPayload } from "../../types/catalog";
 import { formatNumber } from "../../utils/format";
@@ -12,7 +13,7 @@ interface ProductFormProps {
   categories: Category[];
   initialProduct?: Product;
   onCancel: () => void;
-  onSubmit: (payload: ProductPayload, signal: AbortSignal) => Promise<void>;
+  onSubmit: (payload: ProductPayload, file: File | null, signal: AbortSignal) => Promise<void>;
   submitLabel: string;
 }
 
@@ -59,6 +60,8 @@ export function ProductForm({ categories, initialProduct, onCancel, onSubmit, su
   const [errors, setErrors] = useState<FormErrors>({});
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(initialProduct?.image_url ?? null);
   const controllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => controllerRef.current?.abort(), []);
@@ -81,7 +84,8 @@ export function ProductForm({ categories, initialProduct, onCancel, onSubmit, su
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const payload: ProductPayload = { ...values, name: values.name.trim(), description: values.description?.trim() || null, image_url: values.image_url?.trim() || null };
+    const imageUrl = values.image_url?.trim() || null;
+    const payload: ProductPayload = { ...values, name: values.name.trim(), description: values.description?.trim() || null, image_url: imageUrl?.startsWith("/") ? null : imageUrl };
     const nextErrors = validate(payload);
     setErrors(nextErrors);
     setFormError("");
@@ -92,7 +96,7 @@ export function ProductForm({ categories, initialProduct, onCancel, onSubmit, su
     controllerRef.current = controller;
     setSubmitting(true);
     try {
-      await onSubmit(payload, controller.signal);
+      await onSubmit(payload, imageFile, controller.signal);
     } catch (error: unknown) {
       if (isAxiosError(error) && error.code === "ERR_CANCELED") return;
       const apiFieldErrors = getApiFieldErrors(error);
@@ -114,7 +118,7 @@ export function ProductForm({ categories, initialProduct, onCancel, onSubmit, su
       <label className="form-field">Giá bán (VNĐ) <span aria-hidden="true">*</span><input type="text" inputMode="numeric" value={priceInput} onChange={(event) => updatePrice(event.target.value)} onBlur={() => validateField("price")} aria-invalid={Boolean(errors.price)} aria-describedby={errors.price ? "price-error" : "price-help"} placeholder="Ví dụ: 899.000" />{errors.price ? <small id="price-error" className="field-error" role="alert">{errors.price}</small> : <small id="price-help" className="field-helper">Dấu chấm được thêm tự động.</small>}</label>
       <label className="form-field">Số lượng tồn kho <span aria-hidden="true">*</span><input type="number" min="0" step="1" value={values.stock} onChange={(event) => updateValue("stock", Number(event.target.value))} onBlur={() => validateField("stock")} aria-invalid={Boolean(errors.stock)} aria-describedby={errors.stock ? "stock-error" : undefined} />{errors.stock && <small id="stock-error" className="field-error" role="alert">{errors.stock}</small>}</label>
       <label className="form-field">Danh mục <span aria-hidden="true">*</span><select value={values.category_id || ""} onChange={(event) => updateValue("category_id", Number(event.target.value))} onBlur={() => validateField("category_id")} aria-invalid={Boolean(errors.category_id)} aria-describedby={errors.category_id ? "category-error" : undefined}><option value="">Chọn danh mục</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>{errors.category_id && <small id="category-error" className="field-error" role="alert">{errors.category_id}</small>}</label>
-      <label className="form-field">URL hình ảnh <span className="optional">(không bắt buộc)</span><input type="url" inputMode="url" placeholder="https://example.com/image.jpg" value={values.image_url ?? ""} onChange={(event) => updateValue("image_url", event.target.value || null)} onBlur={() => validateField("image_url")} aria-invalid={Boolean(errors.image_url)} aria-describedby={errors.image_url ? "image-url-error" : undefined} />{errors.image_url && <small id="image-url-error" className="field-error" role="alert">{errors.image_url}</small>}</label>
+      <label className="form-field"><span className="field-label">Ảnh sản phẩm <em>(không bắt buộc)</em></span><small className="field-helper">JPEG, PNG hoặc WebP · tối đa 5 MB</small><span className="upload-control"><span className="upload-button">Chọn ảnh</span><span className="upload-file-name">{imageFile?.name ?? "Chưa chọn tệp"}</span><input className="file-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0] ?? null; if (file && file.size > 5 * 1024 * 1024) { setFormError("Ảnh không được vượt quá 5 MB."); return; } setFormError(""); setImageFile(file); setPreview(file ? URL.createObjectURL(file) : initialProduct?.image_url ?? null); }} /></span>{preview && <img className="image-preview" src={apiAssetUrl(preview)} alt="Xem trước ảnh sản phẩm" />}</label>
       <label className="form-field form-field-wide">Mô tả <span className="optional">(không bắt buộc)</span><textarea rows={5} value={values.description ?? ""} onChange={(event) => updateValue("description", event.target.value || null)} /></label>
     </div>
     <div className="form-actions"><button type="button" className="secondary-button" disabled={submitting} onClick={onCancel}>Hủy</button><button type="submit" className="primary-button" disabled={submitting}>{submitting ? "Đang lưu..." : submitLabel}</button></div>

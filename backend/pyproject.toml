@@ -10,10 +10,13 @@ requires-python = ">=3.11"
 dependencies = [
   "alembic",
   "fastapi",
+  "minio",
+  "Pillow",
   "pydantic-settings",
   "pwdlib[argon2]",
   "PyJWT",
   "psycopg[binary]",
+  "python-multipart",
   "redis",
   "sqlalchemy>=2.0",
   "uvicorn[standard]",

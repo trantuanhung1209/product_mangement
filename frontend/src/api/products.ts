@@ -20,3 +20,9 @@ export function updateProduct(productId: number, payload: ProductPayload, signal
 export function deleteProduct(productId: number, signal?: AbortSignal) {
   return api.delete(`/api/v1/products/${productId}`, { signal });
 }
+
+export function uploadProductImage(productId: number, file: File, signal?: AbortSignal) {
+  const data = new FormData();
+  data.append("file", file);
+  return api.post<Product>(`/api/v1/products/${productId}/image`, data, { signal });
+}

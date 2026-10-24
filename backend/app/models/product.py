@@ -26,6 +26,9 @@ class Product(Base):
     stock: Mapped[int] = mapped_column(nullable=False)
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id", ondelete="RESTRICT"), nullable=False)
     image_url: Mapped[str | None] = mapped_column(String(2048))
+    image_object_key: Mapped[str | None] = mapped_column(String(255))
+    image_width: Mapped[int | None] = mapped_column()
+    image_height: Mapped[int | None] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False

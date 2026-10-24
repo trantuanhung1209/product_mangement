@@ -83,6 +83,8 @@ def create_product(db: Session, payload: ProductCreate) -> Product:
 def update_product(db: Session, product_id: int, payload: ProductUpdate | ProductPatch, *, partial: bool) -> Product:
     product = get_product_or_404(db, product_id)
     values = product_values(payload, partial=partial)
+    if product.image_object_key:
+        values.pop("image_url", None)
     if "category_id" in values:
         get_category_or_404(db, values["category_id"])
     for field, value in values.items():
