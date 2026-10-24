@@ -87,24 +87,20 @@ uvicorn app.main:app --reload
 
 API ở `http://localhost:8000`, Swagger ở `http://localhost:8000/docs`.
 
-### 4. Tạo dữ liệu ban đầu
+### 4. Tạo dữ liệu mẫu
 
-Database mới sẽ chưa có sản phẩm. Vào Swagger `http://localhost:8000/docs`, gọi:
+Database mới sẽ chưa có sản phẩm. Sau khi migration xong, mở Terminal khác và chạy:
 
-1. `POST /api/v1/categories` để tạo danh mục.
-2. `POST /api/v1/products`, dùng `category_id` của danh mục vừa tạo.
-
-Ví dụ Product:
-
-```json
-{
-  "name": "Bàn phím cơ",
-  "description": "Bàn phím cho không gian làm việc",
-  "price": "89.99",
-  "stock": 10,
-  "category_id": 1
-}
+```bash
+cd backend
+source .venv/bin/activate
+python -m scripts.seed
 ```
+
+Script thêm 10 danh mục và 100 sản phẩm tiếng Việt, với giá/tồn kho đa dạng để
+thử search, filter, sort và pagination. Nó idempotent: chạy lại không tạo
+duplicate và không update/xóa dữ liệu bạn đã sửa. Script dùng `DATABASE_URL`
+hiện tại, nên không chạy nó với production database.
 
 ### 5. Chạy frontend
 
@@ -116,7 +112,45 @@ npm install
 npm run dev
 ```
 
-Mở URL Vite in ra (mặc định `http://localhost:5173`), sau đó vào `/products` để xem danh sách.
+Mở URL Vite in ra (mặc định `http://localhost:5173`), sau đó vào `/products` để
+xem, thêm, sửa và xóa sản phẩm.
+
+## Chạy tests
+
+Backend integration tests dùng PostgreSQL và Redis **riêng**, không dùng
+database local đang phát triển. Tạo database test một lần (không xóa database
+hay volume đang có):
+
+```bash
+docker exec -it product-catalog-postgres createdb -U product_catalog product_catalog_test
+```
+
+Chỉ chạy lệnh trên nếu database `product_catalog_test` chưa tồn tại. Sau đó:
+
+```bash
+cd backend
+source .venv/bin/activate
+export TEST_DATABASE_URL='postgresql+psycopg://product_catalog:product_catalog_dev@localhost:5432/product_catalog_test'
+export TEST_REDIS_URL='redis://localhost:6379/15'
+pytest
+```
+
+`TEST_REDIS_URL` dùng Redis database số 15; cache tests chỉ flush database này,
+không đụng Redis development database số 0. Frontend hiện không có test runner;
+kiểm tra tối thiểu là:
+
+```bash
+cd frontend
+npm run typecheck
+npm run build
+```
+
+## Chạy toàn bộ local
+
+1. Khởi động PostgreSQL/Redis bằng `docker start` ở bước 1.
+2. Chạy `alembic -c alembic.ini upgrade head`, rồi `uvicorn app.main:app --reload`.
+3. Chạy `python -m scripts.seed` nếu cần dữ liệu mẫu.
+4. Chạy `npm run dev` trong `frontend`.
 
 ## Kiểm tra nhanh
 
@@ -142,3 +176,5 @@ Nếu API Products trả `total: 0`, hãy tạo dữ liệu theo bước 4. Nế
 - [Phase 03 — Product query](docs/PHASE_03_LEARNING.md)
 - [Phase 04 — Redis caching](docs/PHASE_04_LEARNING.md)
 - [Phase 05 — Frontend](docs/PHASE_05_LEARNING.md)
+- [Phase 06 — Product CRUD frontend](docs/PHASE_06_LEARNING.md)
+- [Phase 07 — Seed data & testing](docs/PHASE_07_LEARNING.md)
