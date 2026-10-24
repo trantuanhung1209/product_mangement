@@ -5,7 +5,7 @@ from sqlalchemy import asc, desc, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Product
+from app.models import ImageCleanupTask, Product
 from app.schemas.product import ProductCreate, ProductListResponse, ProductPatch, ProductQuery, ProductUpdate
 from app.services.category import get_category_or_404
 
@@ -56,6 +56,13 @@ def get_product_or_404(db: Session, product_id: int) -> Product:
     return product
 
 
+def get_product_for_update_or_404(db: Session, product_id: int) -> Product:
+    product = db.scalar(select(Product).where(Product.id == product_id).with_for_update())
+    if product is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found.")
+    return product
+
+
 def product_values(payload: ProductCreate | ProductUpdate | ProductPatch, *, partial: bool) -> dict[str, Any]:
     values = payload.model_dump(exclude_unset=partial)
     if "image_url" in values and values["image_url"] is not None:
@@ -101,8 +108,11 @@ def update_product(db: Session, product_id: int, payload: ProductUpdate | Produc
     return product
 
 
-def delete_product(db: Session, product_id: int) -> None:
-    product = get_product_or_404(db, product_id)
+def delete_product(db: Session, product_id: int) -> str | None:
+    product = get_product_for_update_or_404(db, product_id)
+    old_key = product.image_object_key
+    if old_key:
+        db.add(ImageCleanupTask(object_key=old_key))
     db.delete(product)
     try:
         db.commit()
@@ -112,3 +122,4 @@ def delete_product(db: Session, product_id: int) -> None:
             status_code=status.HTTP_409_CONFLICT,
             detail="Product could not be deleted due to a database constraint.",
         ) from None
+    return old_key

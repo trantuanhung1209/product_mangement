@@ -1,6 +1,8 @@
 from collections.abc import Generator
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
+from io import BytesIO
 import os
 from pathlib import Path
 import time
@@ -10,7 +12,10 @@ import jwt
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from minio import Minio
+from PIL import Image
 from redis import Redis
 from redis.exceptions import RedisError
 from sqlalchemy import create_engine
@@ -28,7 +33,8 @@ from app.core.security import (
 )
 from app.db.database import get_db
 from app.main import create_app
-from app.models import User, UserRole
+from app.models import Category, ImageCleanupTask, Product, User, UserRole
+from app.services.image import get_image, run_image_cleanup
 
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -123,6 +129,39 @@ def refresh_cookie(response) -> str:
     value = response.cookies.get(REFRESH_TOKEN_COOKIE)
     assert value is not None
     return value
+
+
+def image_bytes(format: str, mode: str = "RGB") -> bytes:
+    image = Image.new(mode, (40, 20), (20, 40, 60, 120) if mode == "RGBA" else (20, 40, 60))
+    output = BytesIO()
+    image.save(output, format=format)
+    return output.getvalue()
+
+
+def require_minio() -> None:
+    settings = get_settings()
+    if not all((settings.minio_endpoint, settings.minio_access_key, settings.minio_secret_key)):
+        pytest.skip("MinIO configuration is required for image integration tests.")
+    try:
+        Minio(
+            settings.minio_endpoint,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            secure=settings.minio_secure,
+        ).list_buckets()
+    except Exception as error:
+        pytest.skip(f"MinIO is unavailable for image integration tests: {type(error).__name__}")
+
+
+def create_product(engine) -> int:
+    with Session(engine) as session:
+        category = Category(name=f"Images-{uuid4().hex}")
+        session.add(category)
+        session.flush()
+        product = Product(name="Image integration", price=Decimal("1.00"), stock=1, category_id=category.id)
+        session.add(product)
+        session.commit()
+        return product.id
 
 
 @pytest.mark.database
@@ -275,3 +314,84 @@ def test_session_management_user_ownership_and_admin(client: TestClient, auth_en
             f"/api/v1/admin/users/{victim_id}/sessions/{victim_session}", headers=csrf_headers(admin_client)
         ).status_code == 204
     assert auth_redis.get(f"{AUTH_SESSION_NAMESPACE}:{victim_session}") is None
+
+
+@pytest.mark.database
+def test_admin_image_lifecycle_rbac_and_csrf_with_real_minio(client: TestClient, auth_engine) -> None:
+    require_minio()
+    product_id = create_product(auth_engine)
+    endpoint = f"/api/v1/products/{product_id}/image"
+
+    assert client.post(endpoint, files={"file": ("image.jpg", image_bytes("JPEG"), "image/jpeg")}).status_code == 401
+    user_email, user_password = create_user(auth_engine)
+    with TestClient(client.app) as user_client:
+        login(user_client, user_email, user_password)
+        assert user_client.post(endpoint, headers=csrf_headers(user_client), files={"file": ("image.jpg", image_bytes("JPEG"), "image/jpeg")}).status_code == 403
+
+    admin_email, admin_password = create_user(auth_engine, role=UserRole.ADMIN)
+    login(client, admin_email, admin_password)
+    assert client.post(endpoint, files={"file": ("image.jpg", image_bytes("JPEG"), "image/jpeg")}).status_code == 403
+    assert client.post(endpoint, headers={CSRF_HEADER: "wrong"}, files={"file": ("image.jpg", image_bytes("JPEG"), "image/jpeg")}).status_code == 403
+    assert client.post(endpoint, headers={**csrf_headers(client), "Origin": "http://evil.example"}, files={"file": ("image.jpg", image_bytes("JPEG"), "image/jpeg")}).status_code == 403
+
+    first = client.post(endpoint, headers=csrf_headers(client), files={"file": ("image.jpg", image_bytes("JPEG"), "image/jpeg")})
+    assert first.status_code == 200
+    with Session(auth_engine) as session:
+        product = session.get(Product, product_id)
+        assert product is not None
+        first_key = product.image_object_key
+        assert (product.image_width, product.image_height) == (40, 20)
+    proxy = client.get(first.json()["image_url"])
+    assert proxy.status_code == 200 and proxy.headers["content-type"] == "image/webp"
+    with Image.open(BytesIO(proxy.content)) as output:
+        assert output.format == "WEBP"
+
+    replacement = client.post(endpoint, headers=csrf_headers(client), files={"file": ("image.png", image_bytes("PNG", "RGBA"), "image/png")})
+    assert replacement.status_code == 200
+    with Session(auth_engine) as session:
+        product = session.get(Product, product_id)
+        assert product is not None and product.image_object_key != first_key
+        replacement_key = product.image_object_key
+    with pytest.raises(HTTPException, match="Image not found"):
+        get_image(str(first_key))
+
+    webp = client.post(endpoint, headers=csrf_headers(client), files={"file": ("image.webp", image_bytes("WEBP"), "image/webp")})
+    assert webp.status_code == 200
+    with Session(auth_engine) as session:
+        product = session.get(Product, product_id)
+        assert product is not None and product.image_object_key != replacement_key
+        webp_key = product.image_object_key
+    with pytest.raises(HTTPException, match="Image not found"):
+        get_image(str(replacement_key))
+
+    assert client.delete(endpoint, headers=csrf_headers(client)).status_code == 204
+    assert client.get(endpoint).status_code == 404
+    with pytest.raises(HTTPException, match="Image not found"):
+        get_image(str(webp_key))
+
+
+@pytest.mark.database
+def test_minio_failure_returns_503_and_defers_delete_cleanup(client: TestClient, auth_engine, monkeypatch) -> None:
+    require_minio()
+    product_id = create_product(auth_engine)
+    endpoint = f"/api/v1/products/{product_id}/image"
+    admin_email, admin_password = create_user(auth_engine, role=UserRole.ADMIN)
+    login(client, admin_email, admin_password)
+    assert client.post(endpoint, headers=csrf_headers(client), files={"file": ("image.jpg", image_bytes("JPEG"), "image/jpeg")}).status_code == 200
+    with Session(auth_engine) as session:
+        key = session.get(Product, product_id).image_object_key
+
+    monkeypatch.setenv("MINIO_ENDPOINT", "127.0.0.1:1")
+    get_settings.cache_clear()
+    assert client.post(endpoint, headers=csrf_headers(client), files={"file": ("image.jpg", image_bytes("JPEG"), "image/jpeg")}).status_code == 503
+    assert client.delete(endpoint, headers=csrf_headers(client)).status_code == 204
+    with Session(auth_engine) as session:
+        assert session.get(Product, product_id).image_object_key is None
+        assert session.query(ImageCleanupTask).filter_by(object_key=key).count() == 1
+
+    monkeypatch.delenv("MINIO_ENDPOINT")
+    get_settings.cache_clear()
+    with Session(auth_engine) as session:
+        assert run_image_cleanup(session) == (1, 0)
+    with pytest.raises(HTTPException, match="Image not found"):
+        get_image(str(key))

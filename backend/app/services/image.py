@@ -1,19 +1,24 @@
 from io import BytesIO
+import logging
 from uuid import uuid4
 
 from fastapi import HTTPException
 from minio import Minio
 from minio.error import S3Error
 from PIL import Image, ImageOps, UnidentifiedImageError
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 from urllib3.exceptions import HTTPError
 
 from app.core.config import get_settings
+from app.models import ImageCleanupTask, Product
 
 
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 MAX_PIXELS = 20_000_000
 MAX_WIDTH = 1600
 ALLOWED_FORMATS = {"JPEG", "PNG", "WEBP"}
+logger = logging.getLogger("app.image")
 
 
 def process_image(data: bytes) -> tuple[bytes, int, int]:
@@ -61,12 +66,18 @@ def upload_image(data: bytes) -> str:
         raise HTTPException(status_code=503, detail="Image storage is unavailable.") from None
 
 
-def delete_image(key: str) -> None:
+def delete_image(key: str) -> bool:
     try:
         _client().remove_object(get_settings().minio_bucket, key)
-    except (S3Error, HTTPError):
-        # shortcut: orphan cleanup needs a background job once object volume makes retries important.
-        return
+        return True
+    except S3Error as error:
+        if error.code in {"NoSuchKey", "NoSuchObject"}:
+            return True
+        logger.warning("Image deletion failed (%s)", error.code)
+        return False
+    except HTTPError as error:
+        logger.warning("Image storage unavailable during deletion (%s)", type(error).__name__)
+        return False
 
 
 def get_image(key: str) -> bytes:
@@ -77,5 +88,33 @@ def get_image(key: str) -> bytes:
         finally:
             response.close()
             response.release_conn()
-    except (S3Error, HTTPError):
+    except S3Error:
         raise HTTPException(status_code=404, detail="Image not found.") from None
+    except HTTPError:
+        raise HTTPException(status_code=503, detail="Image storage is unavailable.") from None
+
+
+def queue_image_cleanup(db: Session, key: str) -> None:
+    if db.scalar(select(ImageCleanupTask.id).where(ImageCleanupTask.object_key == key)) is None:
+        db.add(ImageCleanupTask(object_key=key))
+
+
+def run_image_cleanup(db: Session, *, dry_run: bool = False) -> tuple[int, int]:
+    removed = retained = 0
+    tasks = list(db.scalars(select(ImageCleanupTask).order_by(ImageCleanupTask.id)))
+    for task in tasks:
+        if db.scalar(select(Product.id).where(Product.image_object_key == task.object_key)) is not None:
+            retained += 1
+            if not dry_run:
+                db.delete(task)
+            continue
+        if dry_run:
+            removed += 1
+        elif delete_image(task.object_key):
+            db.delete(task)
+            removed += 1
+        else:
+            retained += 1
+    if not dry_run:
+        db.commit()
+    return removed, retained
