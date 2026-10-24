@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isAxiosError } from "axios";
 import { ArrowLeft, ArrowRight, ImageOff, PackageCheck } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
@@ -18,8 +19,18 @@ export function StorefrontProductPage() {
   useEffect(() => {
     if (!Number.isInteger(productIdNumber) || productIdNumber <= 0) { setError(true); return; }
     const controller = new AbortController();
-    void Promise.all([getProduct(productIdNumber, controller.signal), getCategories(controller.signal)]).then(([productResponse, categoriesResponse]) => { setProduct(productResponse.data); setCategories(categoriesResponse.data); }).catch(() => setError(true));
-    return () => controller.abort();
+    let isCurrent = true;
+    setError(false);
+    void Promise.all([getProduct(productIdNumber, controller.signal), getCategories(controller.signal)])
+      .then(([productResponse, categoriesResponse]) => {
+        if (!isCurrent) return;
+        setProduct(productResponse.data);
+        setCategories(categoriesResponse.data);
+      })
+      .catch((requestError: unknown) => {
+        if (isCurrent && !(isAxiosError(requestError) && requestError.code === "ERR_CANCELED")) setError(true);
+      });
+    return () => { isCurrent = false; controller.abort(); };
   }, [productIdNumber]);
 
   if (error) return <section className="storefront-container store-state"><h1>Không tìm thấy sản phẩm</h1><p>Sản phẩm có thể đã được gỡ khỏi catalog.</p><Link to="/shop">Về catalog</Link></section>;
