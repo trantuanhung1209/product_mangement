@@ -133,6 +133,11 @@ def test_product_crud_put_and_patch(client: TestClient) -> None:
     fetched = client.get(f"{API_PREFIX}/products/{product['id']}")
     assert fetched.status_code == 200
 
+    legacy_marker = "Mechanical \u2063product-catalog-seed:phase-07\u2063:1:2"
+    legacy_response = client.patch(f"{API_PREFIX}/products/{product['id']}", json={"description": legacy_marker})
+    assert legacy_response.status_code == 200
+    assert legacy_response.json()["description"] == "Mechanical"
+
     put_response = client.put(
         f"{API_PREFIX}/products/{product['id']}",
         json={

@@ -1,8 +1,12 @@
 from datetime import datetime
 from decimal import Decimal
+import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
+
+
+SEED_MARKER_PATTERN = re.compile(r"\s*\u2063product-catalog-seed:phase-07\u2063:\d+:\d+\s*")
 
 
 class ProductCreate(BaseModel):
@@ -70,6 +74,13 @@ class ProductResponse(BaseModel):
     image_url: str | None
     created_at: datetime
     updated_at: datetime
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def hide_seed_marker(cls, value: str | None) -> str | None:
+        if not isinstance(value, str):
+            return value
+        return SEED_MARKER_PATTERN.sub("", value).strip() or None
 
 
 class ProductQuery(BaseModel):
