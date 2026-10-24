@@ -25,6 +25,7 @@ from app.core.cache import get_redis
 from app.core.config import get_settings
 from app.core.security import (
     ACCESS_TOKEN_COOKIE,
+    AUTH_ACCESS_BLACKLIST_NAMESPACE,
     AUTH_SESSION_NAMESPACE,
     CSRF_TOKEN_COOKIE,
     JWT_ALGORITHM,
@@ -131,6 +132,12 @@ def refresh_cookie(response) -> str:
     return value
 
 
+def access_cookie(response) -> str:
+    value = response.cookies.get(ACCESS_TOKEN_COOKIE)
+    assert value is not None
+    return value
+
+
 def image_bytes(format: str, mode: str = "RGB") -> bytes:
     image = Image.new(mode, (40, 20), (20, 40, 60, 120) if mode == "RGBA" else (20, 40, 60))
     output = BytesIO()
@@ -185,6 +192,53 @@ def test_rotation_reuse_detection_and_ttl(client: TestClient, auth_engine, auth_
     assert client.post("/api/v1/auth/refresh", headers=refresh_headers(client, refresh_one)).status_code == 401
     assert client.post("/api/v1/auth/refresh", headers=refresh_headers(client, refresh_three)).status_code == 401
     assert auth_redis.get(key) is None
+
+
+@pytest.mark.database
+def test_access_token_blacklist_refresh_and_session_revocation(client: TestClient, auth_engine, auth_redis: Redis) -> None:
+    email, password = create_user(auth_engine)
+    access_one = access_cookie(login(client, email, password))
+    claims_one = jwt.decode(access_one, SECRET, algorithms=[JWT_ALGORITHM])
+    assert claims_one["jti"]
+    session_key = f"{AUTH_SESSION_NAMESPACE}:{claims_one['sid']}"
+
+    with TestClient(client.app) as second_client:
+        login(second_client, email, password)
+        assert second_client.get("/api/v1/auth/me").status_code == 200
+
+        assert client.post("/api/v1/auth/revoke-access", headers=csrf_headers(client)).status_code == 204
+        blacklist_key = f"{AUTH_ACCESS_BLACKLIST_NAMESPACE}:{claims_one['jti']}"
+        assert 0 < auth_redis.ttl(blacklist_key) <= int(claims_one["exp"] - datetime.now(UTC).timestamp()) + 1
+        assert auth_redis.get(session_key) is not None
+        assert client.get("/api/v1/auth/me").status_code == 401
+        assert second_client.get("/api/v1/auth/me").status_code == 200
+
+    refreshed = client.post("/api/v1/auth/refresh", headers=csrf_headers(client))
+    assert refreshed.status_code == 204
+    access_two = access_cookie(refreshed)
+    claims_two = jwt.decode(access_two, SECRET, algorithms=[JWT_ALGORITHM])
+    assert claims_two["jti"] != claims_one["jti"]
+    assert client.get("/api/v1/auth/me").status_code == 200
+
+    client.cookies.set(ACCESS_TOKEN_COOKIE, access_one, path="/")
+    assert client.get("/api/v1/auth/me").status_code == 401
+    client.cookies.set(ACCESS_TOKEN_COOKIE, access_two, path="/")
+    assert client.post("/api/v1/auth/logout", headers=csrf_headers(client)).status_code == 204
+    client.cookies.set(ACCESS_TOKEN_COOKIE, access_two, path="/")
+    assert client.get("/api/v1/auth/me").status_code == 401
+
+
+@pytest.mark.database
+def test_revoke_access_requires_csrf_origin_and_current_token_only(client: TestClient, auth_engine) -> None:
+    email, password = create_user(auth_engine)
+    login(client, email, password)
+    assert client.post("/api/v1/auth/revoke-access").status_code == 403
+    assert client.post("/api/v1/auth/revoke-access", headers={CSRF_HEADER: "wrong"}).status_code == 403
+    assert client.post(
+        "/api/v1/auth/revoke-access",
+        headers={**csrf_headers(client), "Origin": "http://evil.example"},
+    ).status_code == 403
+    assert client.post("/api/v1/auth/revoke-access", json={"jti": "someone-else"}, headers=csrf_headers(client)).status_code == 204
 
 
 @pytest.mark.database
@@ -250,6 +304,12 @@ def test_login_me_inactive_and_invalid_tokens(client: TestClient, auth_engine) -
     assert any("access_token=" in cookie and "httponly" in cookie.lower() for cookie in cookies)
     assert any("refresh_token=" in cookie and "Path=/api/v1/auth/refresh" in cookie for cookie in cookies)
     assert client.get("/api/v1/auth/me").json()["email"] == email
+    access = access_cookie(login_response)
+    session_id = jwt.decode(access, SECRET, algorithms=[JWT_ALGORITHM])["sid"]
+    legacy = jwt.encode({"sub": "1", "sid": session_id, "exp": datetime.now(UTC) + timedelta(minutes=1)}, SECRET, algorithm=JWT_ALGORITHM)
+    client.cookies.set(ACCESS_TOKEN_COOKIE, legacy, path="/")
+    assert client.get("/api/v1/auth/me").status_code == 401
+    client.cookies.set(ACCESS_TOKEN_COOKIE, access, path="/")
     with Session(auth_engine) as session:
         user = session.query(User).filter_by(email=email).one()
         user.is_active = False
@@ -276,6 +336,7 @@ def test_rbac_and_redis_fail_closed(client: TestClient, auth_engine) -> None:
     client.app.dependency_overrides[get_redis] = lambda: None
     assert client.get("/api/v1/auth/me").status_code == 503
     assert client.post("/api/v1/auth/refresh", headers=csrf_headers(client)).status_code == 503
+    assert client.post("/api/v1/auth/revoke-access", headers=csrf_headers(client)).status_code == 503
     assert client.post("/api/v1/auth/login", json={"email": admin_email, "password": admin_password}).status_code == 503
 
 

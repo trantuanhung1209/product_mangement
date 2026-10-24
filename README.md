@@ -112,6 +112,16 @@ deploy HTTPS, đặt `JWT_COOKIE_SECURE=true`.
   `X-CSRF-Token`; mỗi lần gọi thay refresh token cũ bằng token mới.
 - `POST /api/v1/auth/logout`: cần access cookie cùng CSRF header; revoke đúng
   session hiện tại trong Redis và xóa cookies.
+- `POST /api/v1/auth/revoke-access`: cần access cookie cùng CSRF header; chỉ
+  blacklist access token hiện tại đến khi token hết hạn. Refresh token và Redis
+  session vẫn còn hiệu lực, nên request protected tiếp theo có thể silent refresh.
+
+Access JWT chứa `sub`, `sid`, `jti`, `iat` và `exp`. `jti` là UUID riêng cho
+mỗi access token; Redis chỉ lưu `auth:blacklist:access:{jti}` với TTL bằng thời
+gian còn lại của token, không lưu raw JWT. Token cũ không có `jti` bị từ chối;
+nếu refresh cookie/session còn hiệu lực frontend sẽ cấp token mới, nếu không thì
+người dùng cần login lại. Blacklist không thay thế logout: logout revoke toàn bộ
+session, còn blacklist chỉ chặn đúng access token đang dùng.
 
 Frontend tự gửi CSRF header cho `POST`, `PUT`, `PATCH`, `DELETE` và tự refresh
 một lần khi request protected nhận 401. Redis là bắt buộc với auth: nếu Redis

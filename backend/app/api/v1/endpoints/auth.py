@@ -9,6 +9,7 @@ from app.core.security import (
     CSRF_TOKEN_COOKIE,
     REFRESH_TOKEN_COOKIE,
     _access_token,
+    blacklist_access_token,
     create_session,
     get_current_session_id,
     get_current_user,
@@ -127,6 +128,16 @@ def refresh(
     set_auth_cookies(response, _access_token(user, session_id), refresh_token, csrf_token)
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
+
+
+@router.post("/revoke-access", status_code=status.HTTP_204_NO_CONTENT)
+def revoke_access(
+    request: Request,
+    _: None = Depends(require_csrf),
+    redis: Redis | None = Depends(get_redis),
+) -> Response:
+    blacklist_access_token(request.cookies.get(ACCESS_TOKEN_COOKIE), redis)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

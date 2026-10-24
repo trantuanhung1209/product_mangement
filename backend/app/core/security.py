@@ -4,6 +4,7 @@ import json
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
+from uuid import UUID, uuid4
 
 import jwt
 from fastapi import Depends, HTTPException, Request
@@ -27,6 +28,7 @@ CSRF_HEADER = "X-CSRF-Token"
 JWT_ALGORITHM = "HS256"
 AUTH_SESSION_NAMESPACE = "auth:session"
 AUTH_USER_SESSIONS_NAMESPACE = "auth:user-sessions"
+AUTH_ACCESS_BLACKLIST_NAMESPACE = "auth:blacklist:access"
 password_hash = PasswordHash.recommended()
 access_token_cookie = APIKeyCookie(name=ACCESS_TOKEN_COOKIE, auto_error=False)
 
@@ -51,6 +53,10 @@ def _user_sessions_key(user_id: int) -> str:
     return f"{AUTH_USER_SESSIONS_NAMESPACE}:{user_id}"
 
 
+def _blacklist_key(jti: str) -> str:
+    return f"{AUTH_ACCESS_BLACKLIST_NAMESPACE}:{jti}"
+
+
 def _unauthorized() -> HTTPException:
     return HTTPException(status_code=401, detail="Authentication required.")
 
@@ -70,7 +76,7 @@ def _access_token(user: User, session_id: str) -> str:
     now = datetime.now(UTC)
     expires_at = now + timedelta(minutes=get_settings().jwt_access_token_expire_minutes)
     return jwt.encode(
-        {"sub": str(user.id), "sid": session_id, "iat": now, "exp": expires_at},
+        {"sub": str(user.id), "sid": session_id, "jti": str(uuid4()), "iat": now, "exp": expires_at},
         _secret(),
         algorithm=JWT_ALGORITHM,
     )
@@ -195,13 +201,55 @@ def _get_session(redis: Redis | None, session_id: str) -> dict[str, object]:
     return json.loads(value)
 
 
-def get_current_session_id(token: Annotated[str | None, Depends(access_token_cookie)]) -> str:
+def _access_claims(token: str) -> dict[str, object]:
+    try:
+        claims = jwt.decode(
+            token,
+            _secret(),
+            algorithms=[JWT_ALGORITHM],
+            options={"require": ["exp", "sub", "sid", "jti"]},
+        )
+        if not str(claims["sub"]) or not str(claims["sid"]):
+            raise ValueError
+        UUID(str(claims["jti"]))
+        return claims
+    except (ExpiredSignatureError, InvalidTokenError, KeyError, TypeError, ValueError):
+        raise _unauthorized() from None
+
+
+def _verified_access_claims(token: str, redis: Redis | None) -> dict[str, object]:
+    claims = _access_claims(token)
+    if redis is None:
+        raise _unavailable()
+    try:
+        if redis.exists(_blacklist_key(str(claims["jti"]))):
+            raise _unauthorized()
+    except RedisError:
+        raise _unavailable() from None
+    return claims
+
+
+def blacklist_access_token(token: str | None, redis: Redis | None) -> None:
     if not token:
         raise _unauthorized()
+    claims = _verified_access_claims(token, redis)
+    expires_at = float(claims["exp"])
+    ttl = int(expires_at - datetime.now(UTC).timestamp())
+    if ttl <= 0:
+        raise _unauthorized()
     try:
-        return str(jwt.decode(token, _secret(), algorithms=[JWT_ALGORITHM])["sid"])
-    except (InvalidTokenError, KeyError):
-        raise _unauthorized() from None
+        redis.set(_blacklist_key(str(claims["jti"])), "1", ex=ttl)
+    except RedisError:
+        raise _unavailable() from None
+
+
+def get_current_session_id(
+    token: Annotated[str | None, Depends(access_token_cookie)],
+    redis: Redis | None = Depends(get_redis),
+) -> str:
+    if not token:
+        raise _unauthorized()
+    return str(_verified_access_claims(token, redis)["sid"])
 
 
 def get_current_user(
@@ -212,15 +260,10 @@ def get_current_user(
     if not token:
         raise _unauthorized()
     try:
-        claims = jwt.decode(
-            token,
-            _secret(),
-            algorithms=[JWT_ALGORITHM],
-            options={"require": ["exp", "sub", "sid"]},
-        )
+        claims = _verified_access_claims(token, redis)
         session = _get_session(redis, claims["sid"])
         user_id = int(claims["sub"])
-    except (ExpiredSignatureError, InvalidTokenError, KeyError, TypeError, ValueError):
+    except (KeyError, TypeError, ValueError):
         raise _unauthorized() from None
     if session["user_id"] != user_id:
         raise _unauthorized()
@@ -239,9 +282,9 @@ def require_csrf(
     if not token:
         raise _unauthorized()
     try:
-        claims = jwt.decode(token, _secret(), algorithms=[JWT_ALGORITHM])
+        claims = _verified_access_claims(token, redis)
         session = _get_session(redis, claims["sid"])
-    except (InvalidTokenError, KeyError, TypeError, ValueError):
+    except (KeyError, TypeError, ValueError):
         raise _unauthorized() from None
     header = request.headers.get(CSRF_HEADER)
     cookie = request.cookies.get(CSRF_TOKEN_COOKIE)
