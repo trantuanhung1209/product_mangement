@@ -71,6 +71,8 @@ h1, h2, p { margin-top: 0; }
 .table-actions a, .table-actions button { display: grid; width: 32px; height: 32px; place-items: center; border: 0; border-radius: 7px; color: #687382; background: transparent; }
 .table-actions a:hover { color: #166534; background: #eaf4ec; }
 .table-actions button:hover { color: #a33629; background: #fff0ed; }
+.category-search { width: min(420px, 100%); margin-bottom: 18px; background: #fff; }
+.category-description { min-width: 0; max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .pagination { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 18px 4px 0; color: #737e8b; font-size: 12px; }
 .pagination p { margin: 0; }

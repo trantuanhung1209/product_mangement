@@ -11,6 +11,8 @@ import { LoginPage } from "./pages/LoginPage";
 import { SessionsPage } from "./pages/SessionsPage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { AdminUserSessionsPage } from "./pages/AdminUserSessionsPage";
+import { CategoriesPage } from "./pages/CategoriesPage";
+import { CategoryFormPage } from "./pages/CategoryFormPage";
 import { StorefrontHomePage } from "./pages/StorefrontHomePage";
 import { StorefrontProductPage } from "./pages/StorefrontProductPage";
 import { StorefrontShopPage } from "./pages/StorefrontShopPage";
@@ -99,6 +101,36 @@ export function App() {
               <AdminRoute>
                 <AppShell>
                   <ProductsPage />
+                </AppShell>
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/categories"
+            element={
+              <AdminRoute>
+                <AppShell>
+                  <CategoriesPage />
+                </AppShell>
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/categories/new"
+            element={
+              <AdminRoute>
+                <AppShell>
+                  <CategoryFormPage mode="create" />
+                </AppShell>
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/categories/:categoryId/edit"
+            element={
+              <AdminRoute>
+                <AppShell>
+                  <CategoryFormPage mode="edit" />
                 </AppShell>
               </AdminRoute>
             }

@@ -2,11 +2,22 @@
 
 ## Public route và khu vực quản lý
 
-`App.tsx` giữ `/products` cho dashboard nội bộ, còn `StorefrontShell` bọc ba
-route công khai: `/`, `/shop` và `/shop/:productId`. Tách shell giúp header,
-footer và màu sắc storefront không làm thay đổi giao diện quản lý. Đây cũng là
-cách đơn giản để dữ liệu Product vẫn public, còn CRUD vẫn do RBAC backend bảo
-vệ.
+`StorefrontShell` bọc ba route công khai: `/`, `/shop` và `/shop/:productId`.
+Khu vực riêng của admin dùng `AppShell` tại `/admin/products/*`,
+`/admin/categories/*` và `/admin/users/*`; `AdminRoute` chặn USER/GUEST trước
+khi render sidebar. Tách shell giúp header/footer của storefront không lẫn với
+dashboard, trong khi dữ liệu Product vẫn public và mutation vẫn do RBAC backend
+bảo vệ.
+
+## Category CRUD từ frontend
+
+`api/categories.ts` gọi API thật: GET danh sách là public, còn POST/PUT/DELETE
+được Axios tự đính kèm cookie và header CSRF. `CategoriesPage` giữ danh sách
+trong state, lọc tên ở client vì backend chưa có endpoint search/pagination cho
+Category. `CategoryForm` dùng chung cho tạo và sửa: state của input được kiểm
+soát, trim tên trước khi gửi, khóa nút khi đang submit và hiển thị lỗi `409` như
+“Tên danh mục đã tồn tại”. Xóa luôn qua `ConfirmDialog`; backend trả `409` khi
+danh mục còn Product, nên UI chỉ báo lỗi — không cascade xóa dữ liệu.
 
 ## Dùng API thật cho catalog
 

@@ -5,6 +5,7 @@ import {
   LogOut,
   PackageSearch,
   ShieldCheck,
+  Tags,
   Users,
   Monitor,
 } from "lucide-react";
@@ -36,6 +37,12 @@ export function AppShell({ children }: AppShellProps) {
             <NavLink className="nav-link" to="/admin/products">
               <PackageSearch size={18} aria-hidden="true" />
               Sản phẩm
+            </NavLink>
+          )}
+          {user?.role === "ADMIN" && (
+            <NavLink className="nav-link" to="/admin/categories">
+              <Tags size={18} aria-hidden="true" />
+              Danh mục
             </NavLink>
           )}
           {user && (
