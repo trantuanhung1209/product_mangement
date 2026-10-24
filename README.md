@@ -67,6 +67,10 @@ DATABASE_MAX_OVERFLOW=10
 REDIS_URL=redis://localhost:6379/0
 REDIS_CONNECT_TIMEOUT_SECONDS=1
 REDIS_SOCKET_TIMEOUT_SECONDS=1
+
+JWT_SECRET_KEY=generate_a_random_32_byte_secret
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+JWT_COOKIE_SECURE=false
 ```
 
 Không commit `.env`. Nếu Vite chạy tại port `5174`, đổi `CORS_ORIGINS` thành `http://localhost:5174` rồi restart backend.
@@ -86,6 +90,21 @@ uvicorn app.main:app --reload
 ```
 
 API ở `http://localhost:8000`, Swagger ở `http://localhost:8000/docs`.
+
+### Đăng nhập quản trị
+
+Tạo secret local một lần bằng `openssl rand -hex 32`, gán vào `JWT_SECRET_KEY`
+trong `.env`, rồi restart backend. Tạo Admin không cần hardcode mật khẩu:
+
+```bash
+cd backend
+source .venv/bin/activate
+python -m scripts.create_admin admin@example.com
+```
+
+Lệnh sẽ yêu cầu nhập mật khẩu hai lần. Đăng nhập tại `/login`; access token được
+lưu trong HttpOnly cookie, không lưu ở localStorage. Khi deploy HTTPS, đặt
+`JWT_COOKIE_SECURE=true`.
 
 ### 4. Tạo dữ liệu mẫu
 

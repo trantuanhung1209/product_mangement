@@ -11,6 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.core.security import require_admin_with_csrf
 from app.main import create_app
 
 
@@ -51,6 +52,7 @@ def client(api_engine) -> Generator[TestClient, None, None]:
             session.close()
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[require_admin_with_csrf] = lambda: None
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

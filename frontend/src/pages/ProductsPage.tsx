@@ -7,6 +7,7 @@ import { getCategories } from "../api/categories";
 import { deleteProduct } from "../api/products";
 import { ConfirmDialog } from "../components/feedback/ConfirmDialog";
 import { useToast } from "../components/feedback/Toast";
+import { useAuth } from "../auth/AuthContext";
 import { Pagination } from "../components/products/Pagination";
 import { ProductFilters } from "../components/products/ProductFilters";
 import { ProductTable } from "../components/products/ProductTable";
@@ -49,6 +50,7 @@ export function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const query = useMemo(() => parseQuery(searchParams), [searchParams]);
   const [searchInput, setSearchInput] = useState(query.search ?? "");
   const debouncedSearch = useDebounce(searchInput);
@@ -109,9 +111,9 @@ export function ProductsPage() {
   };
 
   return <>
-    <header className="page-header"><div className="breadcrumb"><span>Danh mục</span><ChevronRight size={14} aria-hidden="true" /><strong>Sản phẩm</strong></div><div className="page-heading-row"><div><h1>Sản phẩm</h1><p>Quản lý và tìm kiếm danh mục sản phẩm của bạn.</p></div><Link className="primary-button button-link" to={`/products/new${location.search}`}><Plus size={16} aria-hidden="true" /> Thêm sản phẩm</Link></div></header>
+    <header className="page-header"><div className="breadcrumb"><span>Danh mục</span><ChevronRight size={14} aria-hidden="true" /><strong>Sản phẩm</strong></div><div className="page-heading-row"><div><h1>Sản phẩm</h1><p>Quản lý và tìm kiếm danh mục sản phẩm của bạn.</p></div>{user?.role === "ADMIN" && <Link className="primary-button button-link" to={`/products/new${location.search}`}><Plus size={16} aria-hidden="true" /> Thêm sản phẩm</Link>}</div></header>
     <ProductFilters categories={categories} categoryId={query.category_id} minPrice={query.min_price} maxPrice={query.max_price} search={searchInput} sortBy={query.sort_by} order={query.order} onSearchChange={setSearchInput} onChange={handleChange} />
-    <ProductTable categories={categories} products={data?.items ?? []} loading={loading} error={error} hasFilters={hasFilters} onRetry={retry} onRequestDelete={setProductToDelete} search={location.search} />
+    <ProductTable categories={categories} products={data?.items ?? []} loading={loading} error={error} hasFilters={hasFilters} onRetry={retry} onRequestDelete={setProductToDelete} search={location.search} canManage={user?.role === "ADMIN"} />
     {!error && !loading && data && <Pagination page={data.page} pageSize={data.page_size} total={data.total} totalPages={data.total_pages} onChange={handleChange} />}
     {productToDelete && <ConfirmDialog busy={deleting} title="Xóa sản phẩm này?" description={`“${productToDelete.name}” sẽ bị xóa vĩnh viễn và không thể khôi phục.`} onCancel={() => setProductToDelete(undefined)} onConfirm={() => void handleDelete()} />}
   </>;

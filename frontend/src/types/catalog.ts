@@ -47,3 +47,11 @@ export interface ProductPayload {
   category_id: number;
   image_url: string | null;
 }
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  role: "ADMIN" | "USER";
+  is_active: boolean;
+  created_at: string;
+}

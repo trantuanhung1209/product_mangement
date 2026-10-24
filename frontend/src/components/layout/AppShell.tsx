@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
-import { Boxes, PackageSearch } from "lucide-react";
+import { Boxes, LogIn, LogOut, PackageSearch, ShieldCheck } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { useAuth } from "../../auth/AuthContext";
 
 interface AppShellProps {
   children: ReactNode;
 }
 
 export function AppShell({ children }: AppShellProps) {
+  const { logout, user } = useAuth();
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -20,7 +22,7 @@ export function AppShell({ children }: AppShellProps) {
             Sản phẩm
           </NavLink>
         </nav>
-        <p className="sidebar-note">Danh mục sản phẩm<br />được cập nhật theo thời gian thực.</p>
+        <div className="sidebar-note">{user ? <><span><ShieldCheck size={14} aria-hidden="true" /> {user.role === "ADMIN" ? "Quản trị viên" : "Người dùng"}</span><small>{user.email}</small><button type="button" onClick={() => void logout()}><LogOut size={14} aria-hidden="true" /> Đăng xuất</button></> : <NavLink to="/login"><LogIn size={14} aria-hidden="true" /> Đăng nhập</NavLink>}</div>
       </aside>
       <main className="page-content">{children}</main>
     </div>
