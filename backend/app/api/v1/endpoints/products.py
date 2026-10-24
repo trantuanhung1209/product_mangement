@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from redis import Redis
 from sqlalchemy.orm import Session
 
+from app.core.security import require_admin_with_csrf
 from app.core.cache import (
     get_cached_model,
     get_redis,
@@ -64,6 +65,7 @@ def create_product(
     payload: ProductCreate,
     db: Session = Depends(get_db),
     redis: Redis | None = Depends(get_redis),
+    _: object = Depends(require_admin_with_csrf),
 ) -> ProductResponse:
     product = product_service.create_product(db, payload)
     invalidate_product_list_cache(redis)
@@ -76,6 +78,7 @@ def update_product(
     payload: ProductUpdate,
     db: Session = Depends(get_db),
     redis: Redis | None = Depends(get_redis),
+    _: object = Depends(require_admin_with_csrf),
 ) -> ProductResponse:
     product = product_service.update_product(db, product_id, payload, partial=False)
     invalidate_product_list_cache(redis)
@@ -89,6 +92,7 @@ def patch_product(
     payload: ProductPatch,
     db: Session = Depends(get_db),
     redis: Redis | None = Depends(get_redis),
+    _: object = Depends(require_admin_with_csrf),
 ) -> ProductResponse:
     product = product_service.update_product(db, product_id, payload, partial=True)
     invalidate_product_list_cache(redis)
@@ -101,6 +105,7 @@ def delete_product(
     product_id: int,
     db: Session = Depends(get_db),
     redis: Redis | None = Depends(get_redis),
+    _: object = Depends(require_admin_with_csrf),
 ) -> Response:
     product_service.delete_product(db, product_id)
     invalidate_product_list_cache(redis)

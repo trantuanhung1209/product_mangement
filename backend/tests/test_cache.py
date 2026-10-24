@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.cache import get_redis, product_list_cache_key
 from app.db.database import get_db
+from app.core.security import require_admin_with_csrf
 from app.main import create_app
 from app.schemas.product import ProductQuery
 
@@ -73,6 +74,7 @@ def client(cache_engine, cache_redis: Redis) -> Generator[TestClient, None, None
             session.close()
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[require_admin_with_csrf] = lambda: None
     app.dependency_overrides[get_redis] = lambda: cache_redis
     with TestClient(app) as test_client:
         yield test_client

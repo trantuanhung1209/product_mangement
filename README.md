@@ -67,6 +67,11 @@ DATABASE_MAX_OVERFLOW=10
 REDIS_URL=redis://localhost:6379/0
 REDIS_CONNECT_TIMEOUT_SECONDS=1
 REDIS_SOCKET_TIMEOUT_SECONDS=1
+
+JWT_SECRET_KEY=generate_a_random_32_byte_secret
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
+JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+JWT_COOKIE_SECURE=false
 ```
 
 Không commit `.env`. Nếu Vite chạy tại port `5174`, đổi `CORS_ORIGINS` thành `http://localhost:5174` rồi restart backend.
@@ -86,6 +91,36 @@ uvicorn app.main:app --reload
 ```
 
 API ở `http://localhost:8000`, Swagger ở `http://localhost:8000/docs`.
+
+### Đăng nhập quản trị
+
+Tạo secret local một lần bằng `openssl rand -hex 32`, gán vào `JWT_SECRET_KEY`
+trong `.env`, rồi restart backend. Tạo Admin không cần hardcode mật khẩu:
+
+```bash
+cd backend
+source .venv/bin/activate
+python -m scripts.create_admin admin@example.com
+```
+
+Lệnh sẽ yêu cầu nhập mật khẩu hai lần. Đăng nhập tại `/login`; access token và
+refresh token được lưu trong HttpOnly cookie, không lưu ở localStorage. Khi
+deploy HTTPS, đặt `JWT_COOKIE_SECURE=true`.
+
+### Login, refresh, logout và CSRF
+
+- `POST /api/v1/auth/login`: cấp access JWT 15 phút, refresh token 7 ngày và
+  CSRF cookie cho một Redis session.
+- `GET /api/v1/auth/me`: cần access cookie và session Redis còn hiệu lực.
+- `POST /api/v1/auth/refresh`: cần refresh cookie cùng header
+  `X-CSRF-Token`; mỗi lần gọi thay refresh token cũ bằng token mới.
+- `POST /api/v1/auth/logout`: cần access cookie cùng CSRF header; revoke đúng
+  session hiện tại trong Redis và xóa cookies.
+
+Frontend tự gửi CSRF header cho `POST`, `PUT`, `PATCH`, `DELETE` và tự refresh
+một lần khi request protected nhận 401. Redis là bắt buộc với auth: nếu Redis
+không truy cập được, auth trả 503 thay vì bỏ qua session validation. Product
+cache vẫn fallback PostgreSQL khi Redis lỗi.
 
 ### 4. Tạo dữ liệu mẫu
 
@@ -178,3 +213,5 @@ Nếu API Products trả `total: 0`, hãy tạo dữ liệu theo bước 4. Nế
 - [Phase 05 — Frontend](docs/PHASE_05_LEARNING.md)
 - [Phase 06 — Product CRUD frontend](docs/PHASE_06_LEARNING.md)
 - [Phase 07 — Seed data & testing](docs/PHASE_07_LEARNING.md)
+- [Phase 08 — JWT authentication & RBAC](docs/PHASE_08_LEARNING.md)
+- [Phase 08B — Refresh token & Redis session](docs/PHASE_08B_LEARNING.md)
