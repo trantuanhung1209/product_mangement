@@ -20,6 +20,11 @@ export interface Category {
   created_at: string;
 }
 
+export interface CategoryPayload {
+  name: string;
+  description: string | null;
+}
+
 export interface ProductListResponse {
   items: Product[];
   total: number;

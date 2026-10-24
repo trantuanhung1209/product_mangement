@@ -11,7 +11,11 @@ interface ProductsState {
 }
 
 export function useProducts(query: ProductQuery) {
-  const [state, setState] = useState<ProductsState>({ data: null, error: false, loading: true });
+  const [state, setState] = useState<ProductsState>({
+    data: null,
+    error: false,
+    loading: true,
+  });
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -19,7 +23,9 @@ export function useProducts(query: ProductQuery) {
     setState((current) => ({ ...current, loading: true, error: false }));
 
     void getProducts(query, controller.signal)
-      .then((response) => setState({ data: response.data, error: false, loading: false }))
+      .then((response) =>
+        setState({ data: response.data, error: false, loading: false }),
+      )
       .catch((error: unknown) => {
         if (isAxiosError(error) && error.code === "ERR_CANCELED") return;
         setState((current) => ({ ...current, error: true, loading: false }));
