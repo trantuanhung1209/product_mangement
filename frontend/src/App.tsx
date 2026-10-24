@@ -11,6 +11,10 @@ import { LoginPage } from "./pages/LoginPage";
 import { SessionsPage } from "./pages/SessionsPage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { AdminUserSessionsPage } from "./pages/AdminUserSessionsPage";
+import { StorefrontHomePage } from "./pages/StorefrontHomePage";
+import { StorefrontProductPage } from "./pages/StorefrontProductPage";
+import { StorefrontShopPage } from "./pages/StorefrontShopPage";
+import { StorefrontShell } from "./components/storefront/StorefrontShell";
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { loading, user } = useAuth(); const location = useLocation();
@@ -23,7 +27,9 @@ export function App() {
   return (
     <AuthProvider><ToastProvider>
       <Routes>
-        <Route path="/" element={<Navigate to="/products" replace />} />
+        <Route path="/" element={<StorefrontShell><StorefrontHomePage /></StorefrontShell>} />
+        <Route path="/shop" element={<StorefrontShell><StorefrontShopPage /></StorefrontShell>} />
+        <Route path="/shop/:productId" element={<StorefrontShell><StorefrontProductPage /></StorefrontShell>} />
         <Route path="/products" element={<AppShell><ProductsPage /></AppShell>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/account/sessions" element={<AppShell><SessionsPage /></AppShell>} />
