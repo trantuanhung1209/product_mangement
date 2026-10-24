@@ -238,3 +238,40 @@ def test_rbac_and_redis_fail_closed(client: TestClient, auth_engine) -> None:
     assert client.get("/api/v1/auth/me").status_code == 503
     assert client.post("/api/v1/auth/refresh", headers=csrf_headers(client)).status_code == 503
     assert client.post("/api/v1/auth/login", json={"email": admin_email, "password": admin_password}).status_code == 503
+
+
+@pytest.mark.database
+def test_session_management_user_ownership_and_admin(client: TestClient, auth_engine, auth_redis: Redis) -> None:
+    email, password = create_user(auth_engine)
+    login(client, email, password)
+    with TestClient(client.app) as second_client:
+        login(second_client, email, password)
+        sessions = client.get("/api/v1/auth/sessions")
+        assert sessions.status_code == 200
+        items = sessions.json()
+        assert len(items) == 2
+        current = next(item for item in items if item["is_current"])
+        other = next(item for item in items if not item["is_current"])
+        assert "refresh_hash" not in current and "csrf" not in current
+        assert client.delete(f"/api/v1/auth/sessions/{other['session_id']}", headers=csrf_headers(client)).status_code == 204
+        assert second_client.get("/api/v1/auth/me").status_code == 401
+        assert client.get("/api/v1/auth/me").status_code == 200
+
+    victim_email, victim_password = create_user(auth_engine)
+    with TestClient(client.app) as victim_client:
+        login(victim_client, victim_email, victim_password)
+        victim_session = victim_client.get("/api/v1/auth/sessions").json()[0]["session_id"]
+    assert client.delete(f"/api/v1/auth/sessions/{victim_session}", headers=csrf_headers(client)).status_code == 404
+
+    admin_email, admin_password = create_user(auth_engine, role=UserRole.ADMIN)
+    with TestClient(client.app) as admin_client:
+        login(admin_client, admin_email, admin_password)
+        users = admin_client.get("/api/v1/admin/users", params={"search": victim_email})
+        assert users.status_code == 200 and users.json()["total"] == 1
+        victim_id = users.json()["items"][0]["id"]
+        listed = admin_client.get(f"/api/v1/admin/users/{victim_id}/sessions")
+        assert listed.status_code == 200 and listed.json()["active_session_count"] == 1
+        assert admin_client.delete(
+            f"/api/v1/admin/users/{victim_id}/sessions/{victim_session}", headers=csrf_headers(admin_client)
+        ).status_code == 204
+    assert auth_redis.get(f"{AUTH_SESSION_NAMESPACE}:{victim_session}") is None

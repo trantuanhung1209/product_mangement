@@ -26,6 +26,7 @@ CSRF_TOKEN_COOKIE = "csrf_token"
 CSRF_HEADER = "X-CSRF-Token"
 JWT_ALGORITHM = "HS256"
 AUTH_SESSION_NAMESPACE = "auth:session"
+AUTH_USER_SESSIONS_NAMESPACE = "auth:user-sessions"
 password_hash = PasswordHash.recommended()
 access_token_cookie = APIKeyCookie(name=ACCESS_TOKEN_COOKIE, auto_error=False)
 
@@ -44,6 +45,10 @@ def _hash(value: str) -> str:
 
 def _key(session_id: str) -> str:
     return f"{AUTH_SESSION_NAMESPACE}:{session_id}"
+
+
+def _user_sessions_key(user_id: int) -> str:
+    return f"{AUTH_USER_SESSIONS_NAMESPACE}:{user_id}"
 
 
 def _unauthorized() -> HTTPException:
@@ -93,20 +98,89 @@ def _origin_allowed(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Origin is not allowed.")
 
 
-def create_session(user: User, redis: Redis | None) -> tuple[str, str, str]:
+def create_session(user: User, redis: Redis | None, user_agent: str | None = None) -> tuple[str, str, str]:
     if redis is None:
         raise _unavailable()
     session_id, secret, refresh = _new_refresh()
     csrf = secrets.token_urlsafe(32)
-    data = json.dumps(
-        {"user_id": user.id, "refresh_hash": _hash(secret), "used_refresh_hashes": [], "csrf": csrf}
-    )
+    now = datetime.now(UTC)
+    ttl = get_settings().jwt_refresh_token_expire_days * 86400
+    data = json.dumps({
+        "user_id": user.id, "refresh_hash": _hash(secret), "used_refresh_hashes": [], "csrf": csrf,
+        "created_at": now.isoformat(), "last_active_at": now.isoformat(),
+        "expires_at": (now + timedelta(seconds=ttl)).isoformat(), "user_agent": (user_agent or "Không xác định")[:255],
+    })
     try:
-        if not redis.set(_key(session_id), data, ex=get_settings().jwt_refresh_token_expire_days * 86400, nx=True):
+        with redis.pipeline() as pipe:
+            pipe.set(_key(session_id), data, ex=ttl, nx=True)
+            pipe.sadd(_user_sessions_key(user.id), session_id)
+            pipe.expire(_user_sessions_key(user.id), ttl)
+            created, _, _ = pipe.execute()
+        if not created:
             raise _unavailable()
     except RedisError:
         raise _unavailable() from None
     return _access_token(user, session_id), refresh, csrf
+
+
+def list_user_sessions(redis: Redis | None, user_id: int) -> list[dict[str, object]]:
+    if redis is None:
+        raise _unavailable()
+    index_key = _user_sessions_key(user_id)
+    try:
+        session_ids = redis.smembers(index_key)
+        sessions: list[dict[str, object]] = []
+        stale_ids: list[str] = []
+        for session_id in session_ids:
+            raw = redis.get(_key(session_id))
+            if not raw:
+                stale_ids.append(session_id)
+                continue
+            session = json.loads(raw)
+            if session.get("user_id") != user_id:
+                stale_ids.append(session_id)
+                continue
+            session["session_id"] = session_id
+            sessions.append(session)
+        if stale_ids:
+            redis.srem(index_key, *stale_ids)
+        return sessions
+    except RedisError:
+        raise _unavailable() from None
+
+
+def revoke_user_session(redis: Redis | None, user_id: int, session_id: str) -> bool:
+    if redis is None:
+        raise _unavailable()
+    key = _key(session_id)
+    index_key = _user_sessions_key(user_id)
+    for _ in range(2):
+        try:
+            with redis.pipeline() as pipe:
+                pipe.watch(key)
+                raw = pipe.get(key)
+                if not raw or json.loads(raw).get("user_id") != user_id:
+                    pipe.unwatch()
+                    return False
+                pipe.multi()
+                pipe.delete(key)
+                pipe.srem(index_key, session_id)
+                pipe.execute()
+            return True
+        except WatchError:
+            continue
+        except RedisError:
+            raise _unavailable() from None
+    return False
+
+
+def revoke_other_user_sessions(redis: Redis | None, user_id: int, current_session_id: str) -> int:
+    revoked = 0
+    for session in list_user_sessions(redis, user_id):
+        session_id = str(session["session_id"])
+        if session_id != current_session_id and revoke_user_session(redis, user_id, session_id):
+            revoked += 1
+    return revoked
 
 
 def _get_session(redis: Redis | None, session_id: str) -> dict[str, object]:
@@ -119,6 +193,15 @@ def _get_session(redis: Redis | None, session_id: str) -> dict[str, object]:
     if not value:
         raise _unauthorized()
     return json.loads(value)
+
+
+def get_current_session_id(token: Annotated[str | None, Depends(access_token_cookie)]) -> str:
+    if not token:
+        raise _unauthorized()
+    try:
+        return str(jwt.decode(token, _secret(), algorithms=[JWT_ALGORITHM])["sid"])
+    except (InvalidTokenError, KeyError):
+        raise _unauthorized() from None
 
 
 def get_current_user(
@@ -212,6 +295,7 @@ def rotate_refresh(
                 used_hashes.append(presented_hash)
                 session["used_refresh_hashes"] = used_hashes
                 session["refresh_hash"] = _hash(new_secret)
+                session["last_active_at"] = datetime.now(UTC).isoformat()
                 pipe.multi()
                 pipe.set(key, json.dumps(session), ex=ttl)
                 pipe.execute()
@@ -241,7 +325,9 @@ def revoke_session(token: str | None, redis: Redis | None) -> None:
         raise _unauthorized()
     try:
         session_id = jwt.decode(token, _secret(), algorithms=[JWT_ALGORITHM])["sid"]
-        redis.delete(_key(session_id))
+        raw = redis.get(_key(session_id))
+        if raw:
+            revoke_user_session(redis, int(json.loads(raw)["user_id"]), str(session_id))
     except (InvalidTokenError, KeyError):
         raise _unauthorized() from None
     except RedisError:

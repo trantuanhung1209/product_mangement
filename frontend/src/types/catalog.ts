@@ -55,3 +55,27 @@ export interface AuthUser {
   is_active: boolean;
   created_at: string;
 }
+
+export interface LoginSession {
+  session_id: string;
+  created_at: string;
+  last_active_at: string;
+  expires_at: string;
+  user_agent: string;
+  is_current: boolean;
+}
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  role: "ADMIN" | "USER";
+  is_active: boolean;
+}
+
+export interface AdminUserList {
+  items: AdminUser[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}

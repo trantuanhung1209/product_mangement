@@ -122,6 +122,18 @@ một lần khi request protected nhận 401. Redis là bắt buộc với auth:
 không truy cập được, auth trả 503 thay vì bỏ qua session validation. Product
 cache vẫn fallback PostgreSQL khi Redis lỗi.
 
+### Quản lý phiên đăng nhập
+
+- `GET /api/v1/auth/sessions`: các phiên của user hiện tại.
+- `DELETE /api/v1/auth/sessions/{session_id}`: thu hồi một phiên thuộc user.
+- `DELETE /api/v1/auth/sessions/others`: giữ phiên hiện tại, đăng xuất thiết bị khác.
+- `GET /api/v1/admin/users` và `/api/v1/admin/users/{id}/sessions`: ADMIN xem
+  users/phiên; các `DELETE` admin cần CSRF để thu hồi phiên.
+
+Mở `/account/sessions` để quản lý thiết bị của chính bạn. ADMIN có thêm
+`/admin/users`. Redis lưu index `auth:user-sessions:{user_id}`, nên không dùng
+Redis `KEYS` để liệt kê session.
+
 ### 4. Tạo dữ liệu mẫu
 
 Database mới sẽ chưa có sản phẩm. Sau khi migration xong, mở Terminal khác và chạy:
@@ -215,3 +227,4 @@ Nếu API Products trả `total: 0`, hãy tạo dữ liệu theo bước 4. Nế
 - [Phase 07 — Seed data & testing](docs/PHASE_07_LEARNING.md)
 - [Phase 08 — JWT authentication & RBAC](docs/PHASE_08_LEARNING.md)
 - [Phase 08B — Refresh token & Redis session](docs/PHASE_08B_LEARNING.md)
+- [Phase 08C — Session management](docs/PHASE_08C_LEARNING.md)
