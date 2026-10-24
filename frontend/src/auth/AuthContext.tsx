@@ -10,7 +10,7 @@ const AuthContext = createContext<AuthValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
-  useEffect(() => { const controller = new AbortController(); void authApi.getCurrentUser(controller.signal).then((response) => setUser(response.data)).catch((error: unknown) => { if (!(isAxiosError(error) && error.code === "ERR_CANCELED")) setUser(null); }).finally(() => setLoading(false)); return () => controller.abort(); }, []);
+  useEffect(() => { const controller = new AbortController(); void authApi.getCurrentUser(controller.signal).then((response) => setUser(response.data)).catch(async (error: unknown) => { if (!(isAxiosError(error) && error.code === "ERR_CANCELED")) { try { await authApi.refresh(); const response = await authApi.getCurrentUser(controller.signal); setUser(response.data); } catch { setUser(null); } } }).finally(() => setLoading(false)); return () => controller.abort(); }, []);
   const login = async (email: string, password: string) => { const response = await authApi.login(email, password); setUser(response.data); };
   const logout = async () => { await authApi.logout(); setUser(null); };
   return <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>;

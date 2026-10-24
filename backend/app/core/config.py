@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     redis_connect_timeout_seconds: float = 1.0
     redis_socket_timeout_seconds: float = 1.0
     jwt_secret_key: str | None = None
-    jwt_access_token_expire_minutes: int = 30
+    jwt_access_token_expire_minutes: int = 15
+    jwt_refresh_token_expire_days: int = 7
     jwt_cookie_secure: bool = False
 
     model_config = SettingsConfigDict(
