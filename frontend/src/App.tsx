@@ -8,6 +8,9 @@ import { ProductsPage } from "./pages/ProductsPage";
 import { ToastProvider } from "./components/feedback/Toast";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { LoginPage } from "./pages/LoginPage";
+import { SessionsPage } from "./pages/SessionsPage";
+import { AdminUsersPage } from "./pages/AdminUsersPage";
+import { AdminUserSessionsPage } from "./pages/AdminUserSessionsPage";
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { loading, user } = useAuth(); const location = useLocation();
@@ -23,6 +26,9 @@ export function App() {
         <Route path="/" element={<Navigate to="/products" replace />} />
         <Route path="/products" element={<AppShell><ProductsPage /></AppShell>} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/account/sessions" element={<AppShell><SessionsPage /></AppShell>} />
+        <Route path="/admin/users" element={<AppShell><AdminRoute><AdminUsersPage /></AdminRoute></AppShell>} />
+        <Route path="/admin/users/:userId/sessions" element={<AppShell><AdminRoute><AdminUserSessionsPage /></AdminRoute></AppShell>} />
         <Route path="/products/new" element={<AppShell><AdminRoute><ProductFormPage mode="create" /></AdminRoute></AppShell>} />
         <Route path="/products/:productId" element={<AppShell><ProductDetailPage /></AppShell>} />
         <Route path="/products/:productId/edit" element={<AppShell><AdminRoute><ProductFormPage mode="edit" /></AdminRoute></AppShell>} />

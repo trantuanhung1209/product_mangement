@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Boxes, LogIn, LogOut, PackageSearch, ShieldCheck } from "lucide-react";
+import { Boxes, LogIn, LogOut, PackageSearch, ShieldCheck, Users, Monitor } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 
@@ -21,6 +21,8 @@ export function AppShell({ children }: AppShellProps) {
             <PackageSearch size={18} aria-hidden="true" />
             Sản phẩm
           </NavLink>
+          {user && <NavLink className="nav-link" to="/account/sessions"><Monitor size={18} aria-hidden="true" />Phiên đăng nhập</NavLink>}
+          {user?.role === "ADMIN" && <NavLink className="nav-link" to="/admin/users"><Users size={18} aria-hidden="true" />Quản lý người dùng</NavLink>}
         </nav>
         <div className="sidebar-note">{user ? <><span><ShieldCheck size={14} aria-hidden="true" /> {user.role === "ADMIN" ? "Quản trị viên" : "Người dùng"}</span><small>{user.email}</small><button type="button" onClick={() => void logout()}><LogOut size={14} aria-hidden="true" /> Đăng xuất</button></> : <NavLink to="/login"><LogIn size={14} aria-hidden="true" /> Đăng nhập</NavLink>}</div>
       </aside>

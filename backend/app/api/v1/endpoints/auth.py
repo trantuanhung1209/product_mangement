@@ -10,14 +10,19 @@ from app.core.security import (
     REFRESH_TOKEN_COOKIE,
     _access_token,
     create_session,
+    get_current_session_id,
     get_current_user,
+    list_user_sessions,
     require_csrf,
+    revoke_other_user_sessions,
     revoke_session,
+    revoke_user_session,
     rotate_refresh,
 )
 from app.db.database import get_db
 from app.models import User
 from app.schemas.auth import LoginRequest, UserResponse
+from app.schemas.session import RevokeSessionsResponse, SessionResponse
 from app.services.auth import authenticate_user
 
 
@@ -45,6 +50,7 @@ def set_auth_cookies(response: Response, token: str, refresh_token: str, csrf_to
 @router.post("/login", response_model=UserResponse)
 def login(
     payload: LoginRequest,
+    request: Request,
     response: Response,
     db: Session = Depends(get_db),
     redis: Redis | None = Depends(get_redis),
@@ -52,7 +58,7 @@ def login(
     user = authenticate_user(db, payload.email, payload.password)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password.")
-    token, refresh_token, csrf_token = create_session(user, redis)
+    token, refresh_token, csrf_token = create_session(user, redis, request.headers.get("user-agent"))
     set_auth_cookies(response, token, refresh_token, csrf_token)
     return user
 
@@ -60,6 +66,49 @@ def login(
 @router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)) -> User:
     return current_user
+
+
+@router.get("/sessions", response_model=list[SessionResponse])
+def sessions(
+    current_user: User = Depends(get_current_user),
+    current_session_id: str = Depends(get_current_session_id),
+    redis: Redis | None = Depends(get_redis),
+) -> list[SessionResponse]:
+    return [SessionResponse(
+        session_id=item["session_id"], created_at=item["created_at"],
+        last_active_at=item["last_active_at"], expires_at=item["expires_at"],
+        user_agent=item["user_agent"], is_current=item["session_id"] == current_session_id,
+    ) for item in list_user_sessions(redis, current_user.id)]
+
+
+@router.delete("/sessions/others", response_model=RevokeSessionsResponse)
+def revoke_others(
+    current_user: User = Depends(get_current_user),
+    current_session_id: str = Depends(get_current_session_id),
+    _: None = Depends(require_csrf),
+    redis: Redis | None = Depends(get_redis),
+) -> RevokeSessionsResponse:
+    return RevokeSessionsResponse(revoked_count=revoke_other_user_sessions(redis, current_user.id, current_session_id))
+
+
+@router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def revoke_single_session(
+    session_id: str,
+    request: Request,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    current_session_id: str = Depends(get_current_session_id),
+    _: None = Depends(require_csrf),
+    redis: Redis | None = Depends(get_redis),
+) -> Response:
+    if not revoke_user_session(redis, current_user.id, session_id):
+        raise HTTPException(status_code=404, detail="Session not found.")
+    if session_id == current_session_id:
+        response.delete_cookie(ACCESS_TOKEN_COOKIE, httponly=True, samesite="lax")
+        response.delete_cookie(CSRF_TOKEN_COOKIE, httponly=False, samesite="lax")
+        response.delete_cookie(REFRESH_TOKEN_COOKIE, httponly=True, samesite="lax", path="/api/v1/auth/refresh")
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return response
 
 
 @router.post("/refresh", status_code=status.HTTP_204_NO_CONTENT)
