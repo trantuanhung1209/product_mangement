@@ -1,0 +1,46 @@
+name: product-catalog
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: [product-catalog-postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports: ["127.0.0.1:6379:6379"]
+    volumes: [product-catalog-redis-data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+  minio:
+    image: firstfinger/minio:latest-arm64
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: /usr/bin/minio server /data --console-address ":9001"
+    ports: ["127.0.0.1:9010:9000", "127.0.0.1:9011:9001", "127.0.0.1:9012:9002"]
+    volumes: [product-catalog-minio-data:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+volumes:
+  product-catalog-postgres-data:
+    external: true
+  product-catalog-redis-data:
+  product-catalog-minio-data:

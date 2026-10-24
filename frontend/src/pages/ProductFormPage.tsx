@@ -4,7 +4,7 @@ import { ArrowLeft, ChevronRight, LoaderCircle } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { getCategories } from "../api/categories";
-import { createProduct, getProduct, updateProduct } from "../api/products";
+import { createProduct, getProduct, updateProduct, uploadProductImage } from "../api/products";
 import { ProductForm } from "../components/products/ProductForm";
 import { useToast } from "../components/feedback/Toast";
 import type { Category, Product, ProductPayload } from "../types/catalog";
@@ -45,8 +45,9 @@ export function ProductFormPage({ mode }: ProductFormPageProps) {
   }, [mode, productIdNumber]);
 
   const backToList = () => navigate(`/products${location.search}`);
-  const saveProduct = async (payload: ProductPayload, signal: AbortSignal) => {
+  const saveProduct = async (payload: ProductPayload, file: File | null, signal: AbortSignal) => {
     const response = mode === "create" ? await createProduct(payload, signal) : await updateProduct(productIdNumber, payload, signal);
+    if (file) await uploadProductImage(response.data.id, file, signal);
     showToast(mode === "create" ? "Đã thêm sản phẩm mới." : "Đã cập nhật sản phẩm.");
     navigate(`/products/${response.data.id}${location.search}`, { replace: true });
   };

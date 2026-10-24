@@ -5,6 +5,11 @@ export const api = axios.create({
   timeout: 8_000,
   withCredentials: true,
 });
+
+export function apiAssetUrl(url: string): string {
+  if (/^https?:\/\//.test(url)) return url;
+  return new URL(url, api.defaults.baseURL ?? window.location.origin).toString();
+}
 let refreshRequest: Promise<unknown> | null = null;
 
 api.interceptors.request.use((config) => {

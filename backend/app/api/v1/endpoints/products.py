@@ -1,7 +1,7 @@
 from typing import Annotated
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from redis import Redis
 from sqlalchemy.orm import Session
 
@@ -18,9 +18,61 @@ from app.core.cache import (
 from app.db.database import get_db
 from app.schemas.product import ProductCreate, ProductListResponse, ProductPatch, ProductQuery, ProductResponse, ProductUpdate
 from app.services import product as product_service
+from app.services.image import delete_image, get_image, process_image, upload_image
 
 
 router = APIRouter(prefix="/products", tags=["products"])
+
+
+@router.get("/{product_id}/image")
+def product_image(product_id: int, db: Session = Depends(get_db)) -> Response:
+    product = product_service.get_product_or_404(db, product_id)
+    if not product.image_object_key:
+        raise HTTPException(status_code=404, detail="Image not found.")
+    return Response(get_image(product.image_object_key), media_type="image/webp")
+
+
+@router.post("/{product_id}/image", response_model=ProductResponse)
+async def upload_product_image(
+    product_id: int, file: UploadFile = File(...), db: Session = Depends(get_db),
+    redis: Redis | None = Depends(get_redis), _: object = Depends(require_admin_with_csrf),
+) -> ProductResponse:
+    data = await file.read(5 * 1024 * 1024 + 1)
+    processed, width, height = process_image(data)
+    new_key = upload_image(processed)
+    product = product_service.get_product_or_404(db, product_id)
+    old_key = product.image_object_key
+    product.image_object_key, product.image_width, product.image_height = new_key, width, height
+    product.image_url = f"/api/v1/products/{product.id}/image"
+    try:
+        db.commit()
+        db.refresh(product)
+    except Exception:
+        db.rollback()
+        delete_image(new_key)
+        raise HTTPException(status_code=500, detail="Product image could not be saved.") from None
+    if old_key:
+        delete_image(old_key)
+    invalidate_product_list_cache(redis)
+    invalidate_product_detail_cache(redis)
+    return ProductResponse.model_validate(product)
+
+
+@router.delete("/{product_id}/image", status_code=status.HTTP_204_NO_CONTENT)
+def delete_product_image(
+    product_id: int, db: Session = Depends(get_db), redis: Redis | None = Depends(get_redis),
+    _: object = Depends(require_admin_with_csrf),
+) -> Response:
+    product = product_service.get_product_or_404(db, product_id)
+    old_key = product.image_object_key
+    product.image_object_key = product.image_url = None
+    product.image_width = product.image_height = None
+    db.commit()
+    if old_key:
+        delete_image(old_key)
+    invalidate_product_list_cache(redis)
+    invalidate_product_detail_cache(redis)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("", response_model=ProductListResponse)

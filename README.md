@@ -134,6 +134,13 @@ Mở `/account/sessions` để quản lý thiết bị của chính bạn. ADMIN
 `/admin/users`. Redis lưu index `auth:user-sessions:{user_id}`, nên không dùng
 Redis `KEYS` để liệt kê session.
 
+### Ảnh sản phẩm
+
+Thiết lập `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` và
+`MINIO_BUCKET` trong `.env`, rồi chạy migration mới nhất. ADMIN có thể chọn JPEG,
+PNG hoặc WebP tối đa 5 MB trong form sản phẩm; backend chuẩn hóa thành WebP trong
+bucket private. Public client chỉ đọc ảnh qua `/api/v1/products/{id}/image`.
+
 ### 4. Tạo dữ liệu mẫu
 
 Database mới sẽ chưa có sản phẩm. Sau khi migration xong, mở Terminal khác và chạy:
@@ -228,3 +235,4 @@ Nếu API Products trả `total: 0`, hãy tạo dữ liệu theo bước 4. Nế
 - [Phase 08 — JWT authentication & RBAC](docs/PHASE_08_LEARNING.md)
 - [Phase 08B — Refresh token & Redis session](docs/PHASE_08B_LEARNING.md)
 - [Phase 08C — Session management](docs/PHASE_08C_LEARNING.md)
+- [Phase 09 — Image processing](docs/PHASE_09_LEARNING.md)

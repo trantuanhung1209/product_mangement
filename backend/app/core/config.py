@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     redis_url: str | None = None
     redis_connect_timeout_seconds: float = 1.0
     redis_socket_timeout_seconds: float = 1.0
+    minio_endpoint: str | None = None
+    minio_access_key: str | None = None
+    minio_secret_key: str | None = None
+    minio_bucket: str = "product-images"
+    minio_secure: bool = False
     jwt_secret_key: str | None = None
     jwt_access_token_expire_minutes: int = 15
     jwt_refresh_token_expire_days: int = 7
