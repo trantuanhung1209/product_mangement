@@ -38,3 +38,12 @@ export interface ProductQuery {
   sort_by: SortBy;
   order: SortOrder;
 }
+
+export interface ProductPayload {
+  name: string;
+  description: string | null;
+  price: string;
+  stock: number;
+  category_id: number;
+  image_url: string | null;
+}

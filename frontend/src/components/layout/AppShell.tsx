@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Boxes, ChevronRight, PackageSearch } from "lucide-react";
+import { Boxes, PackageSearch } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 interface AppShellProps {
@@ -22,14 +22,7 @@ export function AppShell({ children }: AppShellProps) {
         </nav>
         <p className="sidebar-note">Danh mục sản phẩm<br />được cập nhật theo thời gian thực.</p>
       </aside>
-      <main className="page-content">
-        <header className="page-header">
-          <div className="breadcrumb"><span>Danh mục</span><ChevronRight size={14} aria-hidden="true" /><strong>Sản phẩm</strong></div>
-          <h1>Sản phẩm</h1>
-          <p>Quản lý và tìm kiếm danh mục sản phẩm của bạn.</p>
-        </header>
-        {children}
-      </main>
+      <main className="page-content">{children}</main>
     </div>
   );
 }
