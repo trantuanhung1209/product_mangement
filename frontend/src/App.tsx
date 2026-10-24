@@ -17,6 +17,8 @@ import { StorefrontHomePage } from "./pages/StorefrontHomePage";
 import { StorefrontProductPage } from "./pages/StorefrontProductPage";
 import { StorefrontShopPage } from "./pages/StorefrontShopPage";
 import { StorefrontShell } from "./components/storefront/StorefrontShell";
+import { CartProvider } from "./cart/CartContext";
+import { CartPage } from "./pages/CartPage";
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { loading, user } = useAuth();
@@ -69,6 +71,7 @@ function LegacyProductRedirect() {
 export function App() {
   return (
     <AuthProvider>
+      <CartProvider>
       <ToastProvider>
         <Routes>
           <Route
@@ -92,6 +95,14 @@ export function App() {
             element={
               <StorefrontShell>
                 <StorefrontProductPage />
+              </StorefrontShell>
+            }
+          />
+          <Route
+            path="/cart"
+            element={
+              <StorefrontShell>
+                <CartPage />
               </StorefrontShell>
             }
           />
@@ -203,6 +214,7 @@ export function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </ToastProvider>
+      </CartProvider>
     </AuthProvider>
   );
 }

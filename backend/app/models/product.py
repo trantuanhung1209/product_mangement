@@ -9,6 +9,7 @@ from app.db.base import Base
 
 
 if TYPE_CHECKING:
+    from app.models.cart import CartItem
     from app.models.category import Category
 
 
@@ -35,3 +36,4 @@ class Product(Base):
     )
 
     category: Mapped["Category"] = relationship(back_populates="products")
+    cart_items: Mapped[list["CartItem"]] = relationship(back_populates="product", passive_deletes=True)
