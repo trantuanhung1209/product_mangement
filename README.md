@@ -128,6 +128,25 @@ một lần khi request protected nhận 401. Redis là bắt buộc với auth:
 không truy cập được, auth trả 503 thay vì bỏ qua session validation. Product
 cache vẫn fallback PostgreSQL khi Redis lỗi.
 
+### Rate limiting và security headers
+
+Redis giới hạn các route dễ bị abuse: login (5/phút theo IP và account), refresh
+(20/phút/IP), logout/revoke access (10/phút/session), Cart và Product/Category
+admin mutation (30/phút/user), upload ảnh (10/phút/user), public product search
+(60/phút/IP). Khi vượt giới hạn API trả `429` với `Retry-After`.
+
+Login và protected mutations fail-closed với `503` khi Redis limiter không sẵn
+sàng; public search giữ fallback database/cache. Đặt `RATE_LIMIT_KEY_SECRET` là
+secret random riêng (hoặc local development dùng fallback `JWT_SECRET_KEY`) để
+HMAC identity trong Redis keys. Không lưu raw email, JWT hay refresh token vào key.
+
+Mặc định API **không tin** `X-Forwarded-For`. Khi deploy sau reverse proxy, chỉ
+đặt `TRUSTED_PROXY_IPS` là JSON array chứa IP của proxy được tin cậy, ví dụ
+`["172.18.0.2"]`; không dùng `*`. Chỉ đặt `SECURITY_HSTS_ENABLED=true` sau khi
+HTTPS đã được terminate cho API. API thêm `nosniff`, `X-Frame-Options: DENY` và
+`Referrer-Policy`; CSP frontend sẽ được thiết kế/test riêng để không làm Vite,
+fonts hoặc ảnh storefront hỏng.
+
 ### Quản lý phiên đăng nhập
 
 - `GET /api/v1/auth/sessions`: các phiên của user hiện tại.
@@ -204,6 +223,9 @@ source .venv/bin/activate
 export TEST_DATABASE_URL='postgresql+psycopg://product_catalog:product_catalog_dev@localhost:5432/product_catalog_test'
 export TEST_REDIS_URL='redis://localhost:6379/15'
 pytest
+
+# Chạy riêng rate-limit integration/concurrency tests
+pytest tests/test_rate_limit.py -q
 ```
 
 `TEST_REDIS_URL` dùng Redis database số 15; cache tests chỉ flush database này,
