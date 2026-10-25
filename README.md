@@ -261,6 +261,22 @@ khoản sẽ đọc lại cart từ PostgreSQL.
 Các mutation yêu cầu authenticated session và `X-CSRF-Token`; không gửi price
 từ frontend. Migration Cart là `20261024_05`, chạy bằng `alembic upgrade head`.
 
+## Cursor pagination cho Product API
+
+`GET /api/v1/products` vẫn dùng offset pagination cho Admin Dashboard và Shop
+hiện tại. Consumer cần cuộn dữ liệu lớn có thể dùng endpoint mới:
+
+```text
+GET /api/v1/products/cursor?limit=20&search=python&category_id=1&min_price=100000
+```
+
+Endpoint cố định thứ tự `created_at DESC, id DESC`, dùng keyset pagination và
+trả `{ "items", "next_cursor", "has_more" }`. Gửi nguyên `next_cursor` làm
+`cursor` cho lần kế tiếp, đồng thời giữ nguyên các filter. Cursor là opaque,
+đã được ký và gắn với filter; cursor sai, bị sửa hoặc dùng với filter khác sẽ
+trả `400`. Migration `20261025_06` thêm index `(created_at, id)` phục vụ query
+này.
+
 ## Kiểm tra nhanh
 
 ```bash
@@ -292,3 +308,5 @@ Nếu API Products trả `total: 0`, hãy tạo dữ liệu theo bước 4. Nế
 - [Phase 08C — Session management](docs/PHASE_08C_LEARNING.md)
 - [Phase 09 — Image processing](docs/PHASE_09_LEARNING.md)
 - [Phase 11 — Shopping Cart](docs/PHASE_11_LEARNING.md)
+- [Phase 12 — Rate limiting & security hardening](docs/PHASE_12_LEARNING.md)
+- [Phase 13 — Cursor pagination](docs/PHASE_13_LEARNING.md)

@@ -18,7 +18,16 @@ from app.core.cache import (
     set_cached_model,
 )
 from app.db.database import get_db
-from app.schemas.product import ProductCreate, ProductListResponse, ProductPatch, ProductQuery, ProductResponse, ProductUpdate
+from app.schemas.product import (
+    ProductCreate,
+    ProductCursorQuery,
+    ProductCursorResponse,
+    ProductListResponse,
+    ProductPatch,
+    ProductQuery,
+    ProductResponse,
+    ProductUpdate,
+)
 from app.services import product as product_service
 from app.services.image import delete_image, get_image, process_image, queue_image_cleanup, run_image_cleanup, upload_image
 
@@ -112,6 +121,15 @@ def list_products(
     set_cached_model(redis, cache_key, result)
     response.headers["X-Cache"] = "MISS"
     return result
+
+
+@router.get("/cursor", response_model=ProductCursorResponse)
+def list_products_by_cursor(
+    query: Annotated[ProductCursorQuery, Query()],
+    db: Session = Depends(get_db),
+    _: None = Depends(limit_public_search),
+) -> ProductCursorResponse:
+    return product_service.list_products_by_cursor(db, query)
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
