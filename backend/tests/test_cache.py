@@ -14,6 +14,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.core.cache import get_redis, product_list_cache_key
+from app.core.rate_limit import limit_user_mutation
 from app.db.database import get_db
 from app.core.security import require_admin_with_csrf
 from app.main import create_app
@@ -75,6 +76,7 @@ def client(cache_engine, cache_redis: Redis) -> Generator[TestClient, None, None
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[require_admin_with_csrf] = lambda: None
+    app.dependency_overrides[limit_user_mutation] = lambda: None
     app.dependency_overrides[get_redis] = lambda: cache_redis
     with TestClient(app) as test_client:
         yield test_client
@@ -179,6 +181,9 @@ def test_failed_product_mutation_keeps_cached_list(client: TestClient) -> None:
 
 class UnavailableRedis:
     def setnx(self, *_args: object) -> None:
+        raise ConnectionError("Redis is unavailable")
+
+    def eval(self, *_args: object) -> None:
         raise ConnectionError("Redis is unavailable")
 
 

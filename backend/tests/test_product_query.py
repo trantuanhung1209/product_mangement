@@ -11,6 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.core.rate_limit import limit_user_mutation
 from app.core.security import require_admin_with_csrf
 from app.main import create_app
 
@@ -54,6 +55,7 @@ def client(query_engine) -> Generator[TestClient, None, None]:
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[require_admin_with_csrf] = lambda: None
+    app.dependency_overrides[limit_user_mutation] = lambda: None
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
