@@ -25,6 +25,15 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 15
     jwt_refresh_token_expire_days: int = 7
     jwt_cookie_secure: bool = False
+    rate_limit_key_secret: str | None = None
+    rate_limit_login_per_minute: int = 5
+    rate_limit_refresh_per_minute: int = 20
+    rate_limit_session_per_minute: int = 10
+    rate_limit_mutation_per_minute: int = 30
+    rate_limit_image_upload_per_minute: int = 10
+    rate_limit_public_search_per_minute: int = 60
+    trusted_proxy_ips: list[str] = []
+    security_hsts_enabled: bool = False
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",

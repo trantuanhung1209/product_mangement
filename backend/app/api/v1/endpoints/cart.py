@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user, require_csrf
+from app.core.rate_limit import limit_user_mutation
 from app.db.database import get_db
 from app.models import User
 from app.schemas.cart import CartItemCreate, CartItemUpdate, CartResponse
@@ -20,6 +21,7 @@ def get_cart(current_user: User = Depends(get_current_user), db: Session = Depen
 def add_item(
     payload: CartItemCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
     _: None = Depends(require_csrf),
+    __: None = Depends(limit_user_mutation),
 ) -> CartResponse:
     return cart_service.add_item(db, current_user, payload)
 
@@ -28,6 +30,7 @@ def add_item(
 def update_item(
     product_id: int, payload: CartItemUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
     _: None = Depends(require_csrf),
+    __: None = Depends(limit_user_mutation),
 ) -> CartResponse:
     return cart_service.update_item(db, current_user, product_id, payload)
 
@@ -36,6 +39,7 @@ def update_item(
 def remove_item(
     product_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
     _: None = Depends(require_csrf),
+    __: None = Depends(limit_user_mutation),
 ) -> Response:
     cart_service.remove_item(db, current_user, product_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -44,6 +48,7 @@ def remove_item(
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT)
 def clear_cart(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db), _: None = Depends(require_csrf),
+    __: None = Depends(limit_user_mutation),
 ) -> Response:
     cart_service.clear_cart(db, current_user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

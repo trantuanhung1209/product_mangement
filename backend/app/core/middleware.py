@@ -4,6 +4,8 @@ from uuid import uuid4
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.core.config import get_settings
+
 
 logger = logging.getLogger("app.lifecycle")
 logger.setLevel(logging.INFO)
@@ -55,3 +57,26 @@ class RequestLoggingMiddleware:
                 duration_ms,
                 request_id,
             )
+
+
+class SecurityHeadersMiddleware:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        async def send_with_security_headers(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.extend(
+                    [
+                        (b"x-content-type-options", b"nosniff"),
+                        (b"x-frame-options", b"DENY"),
+                        (b"referrer-policy", b"strict-origin-when-cross-origin"),
+                    ]
+                )
+                if get_settings().security_hsts_enabled:
+                    headers.append((b"strict-transport-security", b"max-age=31536000; includeSubDomains"))
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, send_with_security_headers)

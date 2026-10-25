@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.cache import get_redis
 from app.core.config import get_settings
+from app.core.rate_limit import limit_login, limit_refresh, limit_session_operation
 from app.core.security import (
     ACCESS_TOKEN_COOKIE,
     CSRF_TOKEN_COOKIE,
@@ -55,6 +56,7 @@ def login(
     response: Response,
     db: Session = Depends(get_db),
     redis: Redis | None = Depends(get_redis),
+    _: None = Depends(limit_login),
 ) -> User:
     user = authenticate_user(db, payload.email, payload.password)
     if user is None:
@@ -118,6 +120,7 @@ def refresh(
     response: Response,
     db: Session = Depends(get_db),
     redis: Redis | None = Depends(get_redis),
+    _: None = Depends(limit_refresh),
 ) -> Response:
     session_id, refresh_token, csrf_token, user_id = rotate_refresh(
         request, request.cookies.get(REFRESH_TOKEN_COOKIE), redis
@@ -134,6 +137,7 @@ def refresh(
 def revoke_access(
     request: Request,
     _: None = Depends(require_csrf),
+    __: None = Depends(limit_session_operation),
     redis: Redis | None = Depends(get_redis),
 ) -> Response:
     blacklist_access_token(request.cookies.get(ACCESS_TOKEN_COOKIE), redis)
@@ -145,6 +149,7 @@ def logout(
     request: Request,
     response: Response,
     _: None = Depends(require_csrf),
+    __: None = Depends(limit_session_operation),
     redis: Redis | None = Depends(get_redis),
 ) -> Response:
     revoke_session(request.cookies.get(ACCESS_TOKEN_COOKIE), redis)

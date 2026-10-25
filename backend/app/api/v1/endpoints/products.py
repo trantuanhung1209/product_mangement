@@ -7,6 +7,7 @@ from redis import Redis
 from sqlalchemy.orm import Session
 
 from app.core.security import require_admin_with_csrf
+from app.core.rate_limit import limit_image_upload, limit_public_search, limit_user_mutation
 from app.core.cache import (
     get_cached_model,
     get_redis,
@@ -46,6 +47,7 @@ def product_image(product_id: int, db: Session = Depends(get_db)) -> Response:
 async def upload_product_image(
     product_id: int, file: UploadFile = File(...), db: Session = Depends(get_db),
     redis: Redis | None = Depends(get_redis), _: object = Depends(require_admin_with_csrf),
+    __: None = Depends(limit_image_upload),
 ) -> ProductResponse:
     product = product_service.get_product_for_update_or_404(db, product_id)
     data = await file.read(5 * 1024 * 1024 + 1)
@@ -76,6 +78,7 @@ async def upload_product_image(
 def delete_product_image(
     product_id: int, db: Session = Depends(get_db), redis: Redis | None = Depends(get_redis),
     _: object = Depends(require_admin_with_csrf),
+    __: None = Depends(limit_user_mutation),
 ) -> Response:
     product = product_service.get_product_for_update_or_404(db, product_id)
     old_key = product.image_object_key
@@ -97,6 +100,7 @@ def list_products(
     response: Response,
     db: Session = Depends(get_db),
     redis: Redis | None = Depends(get_redis),
+    _: None = Depends(limit_public_search),
 ) -> ProductListResponse:
     normalized_query = urlencode(query.model_dump(mode="json"))
     cache_key = product_list_cache_key(redis, normalized_query)
@@ -134,6 +138,7 @@ def create_product(
     db: Session = Depends(get_db),
     redis: Redis | None = Depends(get_redis),
     _: object = Depends(require_admin_with_csrf),
+    __: None = Depends(limit_user_mutation),
 ) -> ProductResponse:
     product = product_service.create_product(db, payload)
     invalidate_product_list_cache(redis)
@@ -147,6 +152,7 @@ def update_product(
     db: Session = Depends(get_db),
     redis: Redis | None = Depends(get_redis),
     _: object = Depends(require_admin_with_csrf),
+    __: None = Depends(limit_user_mutation),
 ) -> ProductResponse:
     product = product_service.update_product(db, product_id, payload, partial=False)
     invalidate_product_list_cache(redis)
@@ -161,6 +167,7 @@ def patch_product(
     db: Session = Depends(get_db),
     redis: Redis | None = Depends(get_redis),
     _: object = Depends(require_admin_with_csrf),
+    __: None = Depends(limit_user_mutation),
 ) -> ProductResponse:
     product = product_service.update_product(db, product_id, payload, partial=True)
     invalidate_product_list_cache(redis)
@@ -174,6 +181,7 @@ def delete_product(
     db: Session = Depends(get_db),
     redis: Redis | None = Depends(get_redis),
     _: object = Depends(require_admin_with_csrf),
+    __: None = Depends(limit_user_mutation),
 ) -> Response:
     old_key = product_service.delete_product(db, product_id)
     if old_key:

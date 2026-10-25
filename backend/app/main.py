@@ -9,7 +9,7 @@ from redis.exceptions import RedisError
 
 from app.api.router import router as api_router
 from app.core.config import get_settings
-from app.core.middleware import RequestLoggingMiddleware
+from app.core.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
 from app.routers.health import router as health_router
 
 
@@ -51,6 +51,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.add_middleware(RequestLoggingMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
     app.include_router(health_router)
     app.include_router(api_router, prefix="/api")
     return app
