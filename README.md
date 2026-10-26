@@ -90,6 +90,12 @@ uvicorn app.main:app --reload
 
 API ở `http://localhost:8000`, Swagger ở `http://localhost:8000/docs`.
 
+Dependency backend được ghim chính xác trong `backend/pyproject.toml`;
+`backend/requirements.lock` ghi toàn bộ phiên bản (kể cả gián tiếp) đã chạy qua
+bộ test. Để cài đúng các phiên bản đó dùng `python -m pip install -r requirements.lock`
+rồi `python -m pip install --no-deps -e .`. Khi nâng cấp, sửa `pyproject.toml`,
+chạy lại `pytest` rồi tạo lại file lock từ `pip list --format=freeze`.
+
 ### Đăng nhập quản trị
 
 Tạo từng secret local bằng `openssl rand -hex 32`, gán vào `JWT_SECRET_KEY`,
@@ -232,6 +238,9 @@ pytest
 pytest tests/test_rate_limit.py -q
 ```
 
+Test MinIO luôn dùng bucket `product-images-test` (đổi bằng `TEST_MINIO_BUCKET`),
+không ghi vào bucket dev. Chi tiết, ma trận kiểm thử và các rủi ro còn lại:
+`docs/PHASE_15_TESTING.md`.
 `TEST_REDIS_URL` dùng Redis database số 15; cache tests chỉ flush database này,
 không đụng Redis development database số 0. Frontend dùng Vitest (API được mock,
 không cần backend); chạy cùng typecheck và build:
