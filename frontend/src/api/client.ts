@@ -8,7 +8,7 @@ export const api = axios.create({
 
 export function apiAssetUrl(url: string): string {
   if (/^https?:\/\//.test(url)) return url;
-  return new URL(url, api.defaults.baseURL ?? window.location.origin).toString();
+  return new URL(url, api.defaults.baseURL || window.location.origin).toString();
 }
 let refreshRequest: Promise<unknown> | null = null;
 let onSessionExpired: (() => void) | null = null;

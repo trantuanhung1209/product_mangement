@@ -12,6 +12,33 @@ product-catalog/
 └── .env.example   # Biến môi trường dùng chung
 ```
 
+## Hai chế độ chạy
+
+| | Dev (mặc định) | Full Docker |
+| --- | --- | --- |
+| Compose | `infra/compose.yml` (chỉ PostgreSQL, Redis, MinIO) | `docker-compose.yml` ở root (thêm backend, frontend + Nginx) |
+| Backend / frontend | chạy trên máy (`uvicorn`, `npm run dev`) | chạy trong container |
+| Biến môi trường | `.env` (hostname `localhost`) | `.env.docker` (hostname `postgres`, `redis`, `minio`) |
+| Địa chỉ | frontend `:5173`, API `:8000` | tất cả qua Nginx `http://localhost:8080` |
+| Dữ liệu | volume `product-catalog-*` | volume riêng của project `product-catalog-stack` |
+
+Hai chế độ không dùng chung dữ liệu và không xung đột cổng (stack Docker chỉ publish
+`127.0.0.1:8080`). Chi tiết, kiểm tra và rủi ro: `docs/PHASE_16_DOCKER.md`.
+
+### Full Docker
+
+```bash
+cp .env.docker.example .env.docker      # thay mọi <...> bằng secret sinh bằng openssl rand -hex
+docker compose --env-file .env.docker up --build -d
+docker compose --env-file .env.docker ps          # đợi tất cả healthy
+curl http://localhost:8080/health
+```
+
+Backend tự chạy `alembic upgrade head` và tạo bucket MinIO trước khi nhận request.
+Tạo admin: `docker compose --env-file .env.docker exec backend python -m scripts.create_admin admin@example.com`
+(cần terminal tương tác để nhập mật khẩu; thêm `-it` nếu cần). Dừng: `docker compose --env-file .env.docker down`.
+**Không dùng `down -v`**: nó xóa volume PostgreSQL/MinIO của stack.
+
 ## Yêu cầu
 
 - macOS với Python 3.11+ và Node.js 20+
