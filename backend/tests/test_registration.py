@@ -15,7 +15,7 @@ from app.core.config import get_settings
 from app.core.email import ConsoleEmailSender, EmailDeliveryError, ResendEmailSender, UnavailableEmailSender, get_email_sender
 from app.core.security import hash_password
 from app.models import User, UserRole
-from app.services.registration import ACCEPTED_MESSAGE, INVALID_OTP_MESSAGE, LOCKED_MESSAGE
+from app.services.otp_flow import ACCEPTED_MESSAGE, INVALID_OTP_MESSAGE, LOCKED_MESSAGE
 from test_auth import auth_database_url, auth_engine, auth_redis, client, create_user  # noqa: F401
 
 
@@ -31,6 +31,7 @@ class FakeSender:
     def __init__(self) -> None:
         self.otps: list[tuple[str, str]] = []
         self.notices: list[str] = []
+        self.resets: list[tuple[str, str]] = []
         self.fail = False
 
     def send_otp(self, to: str, otp: str, ttl_seconds: int) -> None:
@@ -42,6 +43,11 @@ class FakeSender:
         if self.fail:
             raise EmailDeliveryError
         self.notices.append(to)
+
+    def send_password_reset(self, to: str, otp: str, ttl_seconds: int) -> None:
+        if self.fail:
+            raise EmailDeliveryError
+        self.resets.append((to, otp))
 
     @property
     def last_otp(self) -> str:
@@ -426,10 +432,14 @@ def test_sender_selection(monkeypatch: pytest.MonkeyPatch) -> None:
     assert isinstance(get_email_sender(), ResendEmailSender)
 
 
-def test_console_sender_prints_to_stdout_not_logs(capsys: pytest.CaptureFixture[str], caplog: pytest.LogCaptureFixture) -> None:
+def test_console_sender_never_shows_the_code(capsys: pytest.CaptureFixture[str], caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.DEBUG)
-    ConsoleEmailSender().send_otp("a@example.com", "123456", 300)
-    assert "123456" in capsys.readouterr().out and "123456" not in caplog.text
+    sender = ConsoleEmailSender()
+    sender.send_otp("a@example.com", "123456", 300)
+    sender.send_password_reset("a@example.com", "654321", 300)
+    seen = capsys.readouterr().out + caplog.text
+    assert "123456" not in seen and "654321" not in seen and "a@example.com" not in seen
+    assert "not delivered" in caplog.text
 
 
 def test_resend_sender_builds_a_vietnamese_message_without_calling_the_network(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -22,6 +22,8 @@ class EmailSender(Protocol):
 
     def send_already_registered(self, to: str) -> None: ...
 
+    def send_password_reset(self, to: str, otp: str, ttl_seconds: int) -> None: ...
+
 
 def _otp_message(otp: str, ttl_seconds: int) -> tuple[str, str, str]:
     minutes = max(1, ttl_seconds // 60)
@@ -51,6 +53,21 @@ def _already_registered_message() -> tuple[str, str, str]:
     return subject, text, html
 
 
+def _password_reset_message(otp: str, ttl_seconds: int) -> tuple[str, str, str]:
+    minutes = max(1, ttl_seconds // 60)
+    subject = "Mã đặt lại mật khẩu Product Catalog"
+    text = (
+        f"Mã đặt lại mật khẩu của bạn là {otp}. Mã có hiệu lực trong {minutes} phút.\n"
+        "Nếu bạn không yêu cầu, hãy bỏ qua email này; mật khẩu của bạn không thay đổi. Không chia sẻ mã này với bất kỳ ai."
+    )
+    html = (
+        f"<p>Mã đặt lại mật khẩu của bạn là:</p><p style=\"font-size:28px;letter-spacing:6px\"><strong>{otp}</strong></p>"
+        f"<p>Mã có hiệu lực trong {minutes} phút.</p>"
+        "<p>Nếu bạn không yêu cầu, hãy bỏ qua email này; mật khẩu của bạn không thay đổi. Không chia sẻ mã này với bất kỳ ai.</p>"
+    )
+    return subject, text, html
+
+
 class ResendEmailSender:
     is_configured = True
 
@@ -75,17 +92,27 @@ class ResendEmailSender:
     def send_already_registered(self, to: str) -> None:
         self._send(to, _already_registered_message())
 
+    def send_password_reset(self, to: str, otp: str, ttl_seconds: int) -> None:
+        self._send(to, _password_reset_message(otp, ttl_seconds))
+
 
 class ConsoleEmailSender:
-    """Development only: prints to the terminal's stdout, deliberately bypassing logging."""
+    """Development stand-in when no Resend key is set. It records that a mail would have gone out and
+    nothing else: the code is never written to the console or the logs."""
 
     is_configured = True
 
+    def _note(self, kind: str) -> None:
+        logger.info("Email '%s' not delivered: RESEND_API_KEY is not set (APP_ENV=development).", kind)
+
     def send_otp(self, to: str, otp: str, ttl_seconds: int) -> None:
-        print(f"[DEV EMAIL] OTP for {to}: {otp} (valid {ttl_seconds}s)", flush=True)
+        self._note("registration OTP")
 
     def send_already_registered(self, to: str) -> None:
-        print(f"[DEV EMAIL] {to} is already registered (no OTP sent)", flush=True)
+        self._note("already registered")
+
+    def send_password_reset(self, to: str, otp: str, ttl_seconds: int) -> None:
+        self._note("password reset OTP")
 
 
 class UnavailableEmailSender:
@@ -95,6 +122,9 @@ class UnavailableEmailSender:
         raise EmailDeliveryError
 
     def send_already_registered(self, to: str) -> None:
+        raise EmailDeliveryError
+
+    def send_password_reset(self, to: str, otp: str, ttl_seconds: int) -> None:
         raise EmailDeliveryError
 
 
