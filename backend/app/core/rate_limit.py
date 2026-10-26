@@ -28,7 +28,7 @@ def _unavailable() -> HTTPException:
 
 
 def _identity(value: str) -> str:
-    secret = get_settings().rate_limit_key_secret or get_settings().jwt_secret_key
+    secret = get_settings().rate_limit_key_secret
     if not secret:
         raise _unavailable()
     return hmac.new(secret.encode(), value.encode(), hashlib.sha256).hexdigest()

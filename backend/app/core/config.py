@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     minio_bucket: str = "product-images"
     minio_secure: bool = False
     jwt_secret_key: str | None = None
+    product_cursor_hmac_key: str | None = None
     jwt_access_token_expire_minutes: int = 15
     jwt_refresh_token_expire_days: int = 7
     jwt_cookie_secure: bool = False
@@ -45,3 +46,22 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+PLACEHOLDER_MARKERS = ("change_me", "changeme", "replace_me", "your_secret", "generate_a", "example")
+
+
+def validate_security_configuration(settings: Settings) -> None:
+    required = {
+        "JWT_SECRET_KEY": settings.jwt_secret_key,
+        "PRODUCT_CURSOR_HMAC_KEY": settings.product_cursor_hmac_key,
+        "RATE_LIMIT_KEY_SECRET": settings.rate_limit_key_secret,
+    }
+    invalid = [name for name, value in required.items() if value is None or len(value) < 32]
+    if invalid:
+        raise RuntimeError(f"Security configuration is missing or too short: {', '.join(invalid)}")
+    placeholders = [name for name, value in required.items() if any(m in value.lower() for m in PLACEHOLDER_MARKERS)]
+    if placeholders:
+        raise RuntimeError(f"Security configuration contains placeholder values: {', '.join(placeholders)}")
+    if len(set(required.values())) != len(required):
+        raise RuntimeError("JWT_SECRET_KEY, PRODUCT_CURSOR_HMAC_KEY and RATE_LIMIT_KEY_SECRET must be distinct.")

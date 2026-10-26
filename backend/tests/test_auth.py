@@ -40,6 +40,8 @@ from app.services.image import get_image, run_image_cleanup
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 SECRET = "phase-08-test-secret-must-be-at-least-thirty-two-bytes"
+CURSOR_SECRET = "phase-13-cursor-test-secret-at-least-thirty-two-bytes"
+RATE_LIMIT_SECRET = "phase-12-rate-limit-test-secret-at-least-thirty-two-bytes"
 CSRF_HEADER = "X-CSRF-Token"
 
 
@@ -84,6 +86,8 @@ def client(
     monkeypatch: pytest.MonkeyPatch,
 ) -> Generator[TestClient, None, None]:
     monkeypatch.setenv("JWT_SECRET_KEY", SECRET)
+    monkeypatch.setenv("PRODUCT_CURSOR_HMAC_KEY", CURSOR_SECRET)
+    monkeypatch.setenv("RATE_LIMIT_KEY_SECRET", RATE_LIMIT_SECRET)
     get_settings.cache_clear()
     app = create_app()
 

@@ -1,4 +1,6 @@
 .env
+.env.*
+!**/.env.example
 infra/.env
 backend/.venv/
 frontend/node_modules/

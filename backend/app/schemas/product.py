@@ -113,3 +113,31 @@ class ProductListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class ProductCursorQuery(BaseModel):
+    limit: int = Field(default=20, ge=1, le=100)
+    cursor: str | None = Field(default=None, max_length=512)
+    search: str | None = None
+    category_id: int | None = Field(default=None, gt=0)
+    min_price: Decimal | None = Field(default=None, ge=0)
+    max_price: Decimal | None = Field(default=None, ge=0)
+
+    @field_validator("search")
+    @classmethod
+    def trim_search(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+    @model_validator(mode="after")
+    def minimum_price_must_not_exceed_maximum(self) -> "ProductCursorQuery":
+        if self.min_price is not None and self.max_price is not None and self.min_price > self.max_price:
+            raise ValueError("min_price must be less than or equal to max_price.")
+        return self
+
+
+class ProductCursorResponse(BaseModel):
+    items: list[ProductResponse]
+    next_cursor: str | None
+    has_more: bool

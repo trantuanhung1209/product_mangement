@@ -65,6 +65,8 @@ MINIO_BUCKET=product-images
 MINIO_SECURE=false
 
 JWT_SECRET_KEY=generate_a_random_32_byte_secret
+PRODUCT_CURSOR_HMAC_KEY=generate_a_different_random_32_byte_secret
+RATE_LIMIT_KEY_SECRET=generate_a_third_random_32_byte_secret
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
 JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
 JWT_COOKIE_SECURE=false
@@ -90,8 +92,10 @@ API ở `http://localhost:8000`, Swagger ở `http://localhost:8000/docs`.
 
 ### Đăng nhập quản trị
 
-Tạo secret local một lần bằng `openssl rand -hex 32`, gán vào `JWT_SECRET_KEY`
-trong `.env`, rồi restart backend. Tạo Admin không cần hardcode mật khẩu:
+Tạo từng secret local bằng `openssl rand -hex 32`, gán vào `JWT_SECRET_KEY`,
+`PRODUCT_CURSOR_HMAC_KEY` và `RATE_LIMIT_KEY_SECRET` trong `.env` (ba giá trị
+phải khác nhau, mỗi giá trị ≥32 ký tự; thiếu hoặc trùng thì backend không
+khởi động), rồi restart backend. Xem `docs/SECURITY_SECRETS_AUDIT.md`. Tạo Admin không cần hardcode mật khẩu:
 
 ```bash
 cd backend
@@ -136,8 +140,8 @@ admin mutation (30/phút/user), upload ảnh (10/phút/user), public product sea
 (60/phút/IP). Khi vượt giới hạn API trả `429` với `Retry-After`.
 
 Login và protected mutations fail-closed với `503` khi Redis limiter không sẵn
-sàng; public search giữ fallback database/cache. Đặt `RATE_LIMIT_KEY_SECRET` là
-secret random riêng (hoặc local development dùng fallback `JWT_SECRET_KEY`) để
+sàng; public search giữ fallback database/cache. `RATE_LIMIT_KEY_SECRET` là
+secret random bắt buộc, riêng biệt với `JWT_SECRET_KEY`, dùng để
 HMAC identity trong Redis keys. Không lưu raw email, JWT hay refresh token vào key.
 
 Mặc định API **không tin** `X-Forwarded-For`. Khi deploy sau reverse proxy, chỉ
@@ -261,6 +265,22 @@ khoản sẽ đọc lại cart từ PostgreSQL.
 Các mutation yêu cầu authenticated session và `X-CSRF-Token`; không gửi price
 từ frontend. Migration Cart là `20261024_05`, chạy bằng `alembic upgrade head`.
 
+## Cursor pagination cho Product API
+
+`GET /api/v1/products` vẫn dùng offset pagination cho Admin Dashboard và Shop
+hiện tại. Consumer cần cuộn dữ liệu lớn có thể dùng endpoint mới:
+
+```text
+GET /api/v1/products/cursor?limit=20&search=python&category_id=1&min_price=100000
+```
+
+Endpoint cố định thứ tự `created_at DESC, id DESC`, dùng keyset pagination và
+trả `{ "items", "next_cursor", "has_more" }`. Gửi nguyên `next_cursor` làm
+`cursor` cho lần kế tiếp, đồng thời giữ nguyên các filter. Cursor là opaque,
+đã được ký và gắn với filter; cursor sai, bị sửa hoặc dùng với filter khác sẽ
+trả `400`. Migration `20261025_06` thêm index `(created_at, id)` phục vụ query
+này.
+
 ## Kiểm tra nhanh
 
 ```bash
@@ -292,3 +312,5 @@ Nếu API Products trả `total: 0`, hãy tạo dữ liệu theo bước 4. Nế
 - [Phase 08C — Session management](docs/PHASE_08C_LEARNING.md)
 - [Phase 09 — Image processing](docs/PHASE_09_LEARNING.md)
 - [Phase 11 — Shopping Cart](docs/PHASE_11_LEARNING.md)
+- [Phase 12 — Rate limiting & security hardening](docs/PHASE_12_LEARNING.md)
+- [Phase 13 — Cursor pagination](docs/PHASE_13_LEARNING.md)
