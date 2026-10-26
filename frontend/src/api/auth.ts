@@ -15,6 +15,12 @@ export const resendRegistrationOtp = (email: string) =>
   api.post<RegistrationAccepted>("/api/v1/auth/register/resend-otp", { email });
 export const verifyRegistrationOtp = (email: string, otp: string) =>
   api.post<AuthUser>("/api/v1/auth/register/verify-otp", { email, otp });
+export const forgotPassword = (email: string) =>
+  api.post<RegistrationAccepted>("/api/v1/auth/password/forgot", { email });
+export const resetPassword = (email: string, otp: string, newPassword: string) =>
+  api.post("/api/v1/auth/password/reset", { email, otp, new_password: newPassword });
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  api.post("/api/v1/auth/password/change", { current_password: currentPassword, new_password: newPassword });
 export const logout = () => api.post("/api/v1/auth/logout");
 export const refresh = () => api.post("/api/v1/auth/refresh");
 export const getSessions = (signal?: AbortSignal) => api.get<LoginSession[]>("/api/v1/auth/sessions", { signal });

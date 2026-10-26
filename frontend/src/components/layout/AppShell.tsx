@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import {
   Boxes,
+  KeyRound,
   LogIn,
   LogOut,
   PackageSearch,
@@ -50,6 +51,12 @@ export function AppShell({ children }: AppShellProps) {
             <NavLink className="nav-link" to="/account/sessions">
               <Monitor size={18} aria-hidden="true" />
               Phiên đăng nhập
+            </NavLink>
+          )}
+          {user && (
+            <NavLink className="nav-link" to="/account/password">
+              <KeyRound size={18} aria-hidden="true" />
+              Đổi mật khẩu
             </NavLink>
           )}
           {user?.role === "ADMIN" && (

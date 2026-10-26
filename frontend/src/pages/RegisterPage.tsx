@@ -1,42 +1,20 @@
-import { useEffect, useState } from "react";
-import { isAxiosError } from "axios";
+import { useState } from "react";
 import { ArrowRight, MailCheck } from "lucide-react";
 import { Link, Navigate } from "react-router-dom";
 
-import type { RegistrationAccepted } from "../api/auth";
 import { getApiFieldErrors } from "../api/errors";
 import { useAuth } from "../auth/AuthContext";
 import { PasswordInput } from "../components/feedback/PasswordInput";
+import { PasswordRulesList } from "../components/feedback/PasswordRulesList";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import { useOtpClocks } from "../hooks/useOtpClocks";
 import {
   useRequestRegistrationOtp,
   useResendRegistrationOtp,
   useVerifyRegistrationOtp,
 } from "../hooks/useRegistration";
-import { PASSWORD_RULES, passwordProblems } from "../utils/passwordRules";
-
-// Only a fallback for a 429 without Retry-After; the countdowns use the values the server returns.
-const FALLBACK_WAIT_SECONDS = 60;
-const GENERIC_ERROR = "Có lỗi xảy ra. Vui lòng thử lại.";
-
-function waitSeconds(error: unknown): number | null {
-  if (!isAxiosError(error) || error.response?.status !== 429) return null;
-  const parsed = Number(error.response.headers?.["retry-after"]);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.ceil(parsed) : FALLBACK_WAIT_SECONDS;
-}
-
-function describeError(error: unknown): string {
-  const wait = waitSeconds(error);
-  if (wait !== null) return `Bạn thao tác quá nhanh. Vui lòng đợi ${wait} giây rồi thử lại.`;
-  if (isAxiosError(error) && typeof error.response?.data?.detail === "string" && [400, 503].includes(error.response.status))
-    return error.response.data.detail;
-  return GENERIC_ERROR;
-}
-
-function formatClock(totalSeconds: number) {
-  const seconds = Math.max(0, totalSeconds);
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-}
+import { describeError, formatClock, waitSeconds } from "../utils/authErrors";
+import { passwordProblems } from "../utils/passwordRules";
 
 export function RegisterPage() {
   useDocumentTitle("Đăng ký");
@@ -51,28 +29,9 @@ export function RegisterPage() {
   const [otp, setOtp] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
-  const [expiresAt, setExpiresAt] = useState(0);
-  const [resendAt, setResendAt] = useState(0);
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (step !== "otp") return;
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [step]);
+  const clocks = useOtpClocks(step === "otp");
 
   if (user) return <Navigate to="/shop" replace />;
-
-  const startClocks = (timings: RegistrationAccepted) => {
-    const current = Date.now();
-    setNow(current);
-    setExpiresAt(current + timings.expires_in_seconds * 1000);
-    setResendAt(current + timings.resend_in_seconds * 1000);
-  };
-  const remaining = Math.ceil((expiresAt - now) / 1000);
-  const resendIn = Math.max(0, Math.ceil((resendAt - now) / 1000));
-  const expired = remaining <= 0;
 
   const submitDetails = (event: React.FormEvent) => {
     event.preventDefault();
@@ -92,7 +51,7 @@ export function RegisterPage() {
           setPassword("");
           setConfirmation("");
           setOtp("");
-          startClocks(timings);
+          clocks.start(timings);
           setStep("otp");
         },
         onError: (error) => {
@@ -121,13 +80,12 @@ export function RegisterPage() {
     resendOtp.mutate(email.trim(), {
       onSuccess: (timings) => {
         setOtp("");
-        startClocks(timings);
+        clocks.start(timings);
       },
       onError: (error) => {
         const wait = waitSeconds(error);
         if (wait !== null) {
-          setNow(Date.now());
-          setResendAt(Date.now() + wait * 1000);
+          clocks.holdResendFor(wait);
         }
         setFormError(describeError(error));
       },
@@ -173,13 +131,7 @@ export function RegisterPage() {
             error={fieldErrors.password}
             describedBy="password-rules"
           />
-          <ul className="password-rules" id="password-rules">
-            {PASSWORD_RULES.map((rule) => (
-              <li key={rule.id} data-met={rule.test(password)}>
-                {rule.test(password) ? "✓" : "•"} {rule.label}
-              </li>
-            ))}
-          </ul>
+          <PasswordRulesList password={password} id="password-rules" />
           <PasswordInput
             label="Xác nhận mật khẩu"
             value={confirmation}
@@ -211,18 +163,18 @@ export function RegisterPage() {
             />
           </div>
           <p className="otp-timer" role="timer" aria-live="off">
-            {expired ? "Mã đã hết hạn. Hãy gửi lại mã mới." : `Mã còn hiệu lực: ${formatClock(remaining)}`}
+            {clocks.expired ? "Mã đã hết hạn. Hãy gửi lại mã mới." : `Mã còn hiệu lực: ${formatClock(clocks.remaining)}`}
           </p>
-          <button className="primary-button login-submit" disabled={verifyOtp.isPending || otp.length !== 6 || expired}>
+          <button className="primary-button login-submit" disabled={verifyOtp.isPending || otp.length !== 6 || clocks.expired}>
             {verifyOtp.isPending ? "Đang xác minh..." : "Xác minh và đăng ký"}
           </button>
           <button
             type="button"
             className="secondary-button"
             onClick={resend}
-            disabled={resendIn > 0 || resendOtp.isPending}
+            disabled={clocks.resendIn > 0 || resendOtp.isPending}
           >
-            {resendIn > 0 ? `Gửi lại mã (${resendIn}s)` : "Gửi lại mã"}
+            {clocks.resendIn > 0 ? `Gửi lại mã (${clocks.resendIn}s)` : "Gửi lại mã"}
           </button>
           <button type="button" className="link-button" onClick={() => { setStep("details"); setFormError(""); setOtp(""); }}>
             Đổi email hoặc mật khẩu

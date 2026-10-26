@@ -17,6 +17,7 @@ export function LoginPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const requestedPath = (location.state as { from?: string } | null)?.from;
+  const notice = (location.state as { notice?: string } | null)?.notice;
   const safePublicPath = requestedPath?.startsWith("/") && !requestedPath.startsWith("//") && !requestedPath.startsWith("/admin")
     ? requestedPath
     : "/shop";
@@ -62,6 +63,7 @@ export function LoginPage() {
         <p className="eyebrow">KHU VỰC QUẢN TRỊ</p>
         <h2>Chào mừng trở lại</h2>
         <p>Nhập thông tin tài khoản để tiếp tục.</p>
+        {notice && !error && <p className="form-notice" role="status">{notice}</p>}
         {error && (
           <p className="form-error" role="alert">
             {error}
@@ -94,6 +96,7 @@ export function LoginPage() {
             </>
           )}
         </button>
+        <p className="auth-switch"><Link to="/forgot-password">Quên mật khẩu?</Link></p>
         <p className="auth-switch">
           Chưa có tài khoản? <Link to="/register">Đăng ký</Link>
         </p>
