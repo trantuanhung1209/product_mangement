@@ -8,7 +8,7 @@ from redis import Redis
 from redis.exceptions import RedisError
 
 from app.api.router import router as api_router
-from app.core.config import get_settings
+from app.core.config import get_settings, validate_security_configuration
 from app.core.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
 from app.routers.health import router as health_router
 
@@ -19,6 +19,7 @@ logger = logging.getLogger("app.cache")
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
+    validate_security_configuration(settings)
     redis: Redis | None = None
     if settings.redis_url is not None:
         redis = Redis.from_url(

@@ -12,7 +12,7 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
 from app.models import Category, Product
-from test_auth import SECRET, auth_database_url, auth_engine, auth_redis, client
+from test_auth import CURSOR_SECRET, auth_database_url, auth_engine, auth_redis, client
 
 
 CURSOR_URL = "/api/v1/products/cursor"
@@ -43,7 +43,7 @@ def create_products(engine, *, count: int, prefix: str, created_at: datetime, ca
 
 def signed_cursor(values: dict[str, object]) -> str:
     payload = json.dumps(values, separators=(",", ":"), sort_keys=True).encode()
-    signature = hmac.new(SECRET.encode(), payload, hashlib.sha256).digest()
+    signature = hmac.new(CURSOR_SECRET.encode(), payload, hashlib.sha256).digest()
     encode = lambda value: base64.urlsafe_b64encode(value).decode().rstrip("=")
     return f"{encode(payload)}.{encode(signature)}"
 

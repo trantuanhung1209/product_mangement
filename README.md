@@ -65,6 +65,8 @@ MINIO_BUCKET=product-images
 MINIO_SECURE=false
 
 JWT_SECRET_KEY=generate_a_random_32_byte_secret
+PRODUCT_CURSOR_HMAC_KEY=generate_a_different_random_32_byte_secret
+RATE_LIMIT_KEY_SECRET=generate_a_third_random_32_byte_secret
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
 JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
 JWT_COOKIE_SECURE=false
@@ -90,8 +92,10 @@ API ở `http://localhost:8000`, Swagger ở `http://localhost:8000/docs`.
 
 ### Đăng nhập quản trị
 
-Tạo secret local một lần bằng `openssl rand -hex 32`, gán vào `JWT_SECRET_KEY`
-trong `.env`, rồi restart backend. Tạo Admin không cần hardcode mật khẩu:
+Tạo từng secret local bằng `openssl rand -hex 32`, gán vào `JWT_SECRET_KEY`,
+`PRODUCT_CURSOR_HMAC_KEY` và `RATE_LIMIT_KEY_SECRET` trong `.env` (ba giá trị
+phải khác nhau, mỗi giá trị ≥32 ký tự; thiếu hoặc trùng thì backend không
+khởi động), rồi restart backend. Xem `docs/SECURITY_SECRETS_AUDIT.md`. Tạo Admin không cần hardcode mật khẩu:
 
 ```bash
 cd backend
@@ -136,8 +140,8 @@ admin mutation (30/phút/user), upload ảnh (10/phút/user), public product sea
 (60/phút/IP). Khi vượt giới hạn API trả `429` với `Retry-After`.
 
 Login và protected mutations fail-closed với `503` khi Redis limiter không sẵn
-sàng; public search giữ fallback database/cache. Đặt `RATE_LIMIT_KEY_SECRET` là
-secret random riêng (hoặc local development dùng fallback `JWT_SECRET_KEY`) để
+sàng; public search giữ fallback database/cache. `RATE_LIMIT_KEY_SECRET` là
+secret random bắt buộc, riêng biệt với `JWT_SECRET_KEY`, dùng để
 HMAC identity trong Redis keys. Không lưu raw email, JWT hay refresh token vào key.
 
 Mặc định API **không tin** `X-Forwarded-For`. Khi deploy sau reverse proxy, chỉ

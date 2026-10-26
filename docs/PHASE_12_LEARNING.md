@@ -147,7 +147,7 @@ Email được trim/lowercase trước khi dùng identity login.
 
 Identity luôn đi qua HMAC-SHA256 trước khi thành Redis key.
 
-Secret là RATE_LIMIT_KEY_SECRET, fallback JWT_SECRET_KEY cho local development.
+Secret là RATE_LIMIT_KEY_SECRET, bắt buộc và riêng biệt với JWT_SECRET_KEY (không còn fallback).
 
 Redis không giữ raw email, raw JWT, refresh token hay raw session ID trong key.
 

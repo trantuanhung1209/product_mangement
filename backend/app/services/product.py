@@ -77,7 +77,7 @@ def _cursor_error(detail: str = "Invalid cursor.") -> HTTPException:
 
 
 def _cursor_secret() -> bytes:
-    secret = get_settings().jwt_secret_key
+    secret = get_settings().product_cursor_hmac_key
     if not secret:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Cursor service unavailable.")
     return secret.encode()

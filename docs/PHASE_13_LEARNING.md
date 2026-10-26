@@ -64,7 +64,7 @@ Giới hạn trong `ProductCursorQuery` là 1–100, mặc định 20. Pydantic/
 
 `encode_product_cursor()` tạo JSON nhỏ gồm version (`v`), `created_at`, `id` và
 fingerprint của filter, sau đó Base64 URL-safe payload và HMAC-SHA256 bằng
-`JWT_SECRET_KEY` hiện có. Nó không chứa thông tin nhạy cảm, nhưng chữ ký ngăn
+`PRODUCT_CURSOR_HMAC_KEY` (secret riêng, không dùng chung với JWT). Nó không chứa thông tin nhạy cảm, nhưng chữ ký ngăn
 client tự đổi ID/timestamp để nhảy qua danh sách hay giả cursor.
 
 Cursor là opaque: client chỉ giữ và gửi lại chuỗi `next_cursor`, không parse hay
