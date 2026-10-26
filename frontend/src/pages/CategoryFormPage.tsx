@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
 import { isAxiosError } from "axios";
 import { ArrowLeft, ChevronRight, LoaderCircle } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { createCategory, getCategories, updateCategory } from "../api/categories";
 import { getApiFieldErrors } from "../api/errors";
 import { CategoryForm } from "../components/categories/CategoryForm";
 import { useToast } from "../components/feedback/Toast";
-import type { Category, CategoryPayload } from "../types/catalog";
+import { useCategories } from "../hooks/useCategories";
+import { useSaveCategory } from "../hooks/useCategoryMutations";
+import type { CategoryPayload } from "../types/catalog";
 
 interface CategoryFormPageProps {
   mode: "create" | "edit";
@@ -28,36 +28,18 @@ export function CategoryFormPage({ mode }: CategoryFormPageProps) {
   const categoryIdNumber = Number(categoryId);
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [category, setCategory] = useState<Category>();
-  const [loading, setLoading] = useState(mode === "edit");
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    if (mode !== "edit") return;
-    if (!Number.isInteger(categoryIdNumber) || categoryIdNumber <= 0) {
-      setError(true);
-      setLoading(false);
-      return;
-    }
-    const controller = new AbortController();
-    void getCategories(controller.signal)
-      .then((response) => {
-        const currentCategory = response.data.find((item) => item.id === categoryIdNumber);
-        if (currentCategory) setCategory(currentCategory);
-        else setError(true);
-      })
-      .catch((requestError: unknown) => {
-        if (!(isAxiosError(requestError) && requestError.code === "ERR_CANCELED")) setError(true);
-      })
-      .finally(() => setLoading(false));
-    return () => controller.abort();
-  }, [categoryIdNumber, mode]);
+  const isEdit = mode === "edit";
+  const categoriesQuery = useCategories();
+  const saveMutation = useSaveCategory(isEdit ? categoryIdNumber : undefined);
+  const validId = Number.isInteger(categoryIdNumber) && categoryIdNumber > 0;
+  const category = isEdit && validId ? categoriesQuery.categories.find((item) => item.id === categoryIdNumber) : undefined;
+  const loading = isEdit && validId && categoriesQuery.loading;
+  const error = isEdit && (!validId || categoriesQuery.error);
 
   const backToList = () => navigate("/admin/categories");
   const submit = async (payload: CategoryPayload) => {
     try {
-      if (mode === "create") await createCategory(payload);
-      else await updateCategory(categoryIdNumber, payload);
+      await saveMutation.mutateAsync(payload);
       showToast(mode === "create" ? "Đã thêm danh mục." : "Đã cập nhật danh mục.");
       backToList();
     } catch (requestError) {

@@ -18,13 +18,13 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { getCategories } from "../api/categories";
 import heroImageOne from "../assets/store-hero-01.webp";
 import heroImageTwo from "../assets/store-hero-02.webp";
 import heroImageThree from "../assets/store-hero-03.webp";
 import { StoreProductCard } from "../components/storefront/StoreProductCard";
+import { useCategories } from "../hooks/useCategories";
 import { useProducts } from "../hooks/useProducts";
-import type { Category, Product } from "../types/catalog";
+import type { Product } from "../types/catalog";
 
 const featuredQuery = {
   page: 1,
@@ -55,21 +55,13 @@ const heroSlides = [
 const categoryIcons = [Laptop, House, PenLine, Smartphone, ShoppingBag, Shirt];
 
 export function StorefrontHomePage() {
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { categories } = useCategories();
   const query = useMemo(() => featuredQuery, []);
   const { data, error, loading, retry } = useProducts(query);
   const products = data?.items ?? [];
   const categoryNames = new Map(
     categories.map((category) => [category.id, category.name]),
   );
-
-  useEffect(() => {
-    const controller = new AbortController();
-    void getCategories(controller.signal)
-      .then((response) => setCategories(response.data))
-      .catch(() => setCategories([]));
-    return () => controller.abort();
-  }, []);
 
   return (
     <>

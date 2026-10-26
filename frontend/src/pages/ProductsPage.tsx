@@ -1,20 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { isAxiosError } from "axios";
 import { ChevronRight, Plus } from "lucide-react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 
-import { getCategories } from "../api/categories";
-import { deleteProduct } from "../api/products";
 import { ConfirmDialog } from "../components/feedback/ConfirmDialog";
 import { useToast } from "../components/feedback/Toast";
 import { useAuth } from "../auth/AuthContext";
 import { Pagination } from "../components/products/Pagination";
 import { ProductFilters } from "../components/products/ProductFilters";
 import { ProductTable } from "../components/products/ProductTable";
+import { useCategories } from "../hooks/useCategories";
 import { useDebounce } from "../hooks/useDebounce";
+import { useDeleteProduct } from "../hooks/useProductMutations";
 import { useProducts } from "../hooks/useProducts";
 import type {
-  Category,
   Product,
   ProductQuery,
   SortBy,
@@ -79,9 +77,9 @@ export function ProductsPage() {
   const [searchInput, setSearchInput] = useState(query.search ?? "");
   const debouncedSearch = useDebounce(searchInput);
   const searchWasCleared = useRef(false);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { categories } = useCategories();
   const [productToDelete, setProductToDelete] = useState<Product>();
-  const [deleting, setDeleting] = useState(false);
+  const deleteMutation = useDeleteProduct();
   const { data, error, loading, retry } = useProducts(query);
 
   const updateParams = useCallback(
@@ -107,17 +105,6 @@ export function ProductsPage() {
       updateParams({ search: debouncedSearch.trim() || undefined });
   }, [debouncedSearch, query.search, updateParams]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void getCategories(controller.signal)
-      .then((response) => setCategories(response.data))
-      .catch((error: unknown) => {
-        if (!(isAxiosError(error) && error.code === "ERR_CANCELED"))
-          setCategories([]);
-      });
-    return () => controller.abort();
-  }, []);
-
   const handleChange = useCallback(
     (changes: Record<string, string | undefined>, resetPage = true) => {
       if ("search" in changes && changes.search === undefined) {
@@ -138,17 +125,13 @@ export function ProductsPage() {
   );
   const handleDelete = async () => {
     if (!productToDelete) return;
-    setDeleting(true);
     try {
-      await deleteProduct(productToDelete.id);
+      await deleteMutation.mutateAsync(productToDelete.id);
       showToast("Đã xóa sản phẩm.");
-      setProductToDelete(undefined);
-      retry();
     } catch {
       showToast("Không thể xóa sản phẩm. Vui lòng thử lại.", "error");
-      setDeleting(false);
-      setProductToDelete(undefined);
     }
+    setProductToDelete(undefined);
   };
 
   return (
@@ -207,7 +190,7 @@ export function ProductsPage() {
       )}
       {productToDelete && (
         <ConfirmDialog
-          busy={deleting}
+          busy={deleteMutation.isPending}
           title="Xóa sản phẩm này?"
           description={`“${productToDelete.name}” sẽ bị xóa vĩnh viễn và không thể khôi phục.`}
           onCancel={() => setProductToDelete(undefined)}

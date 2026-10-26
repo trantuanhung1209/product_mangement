@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { isAxiosError } from "axios";
+import { useState } from "react";
 import {
   ArrowLeft,
   ChevronRight,
@@ -10,12 +9,12 @@ import {
 } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
-import { getCategories } from "../api/categories";
 import { apiAssetUrl } from "../api/client";
-import { deleteProduct, getProduct } from "../api/products";
 import { ConfirmDialog } from "../components/feedback/ConfirmDialog";
 import { useToast } from "../components/feedback/Toast";
-import type { Category, Product } from "../types/catalog";
+import { useCategories } from "../hooks/useCategories";
+import { useProduct } from "../hooks/useProduct";
+import { useDeleteProduct } from "../hooks/useProductMutations";
 import { formatDate, formatNumber, formatPrice } from "../utils/format";
 
 export function ProductDetailPage() {
@@ -24,49 +23,22 @@ export function ProductDetailPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [product, setProduct] = useState<Product>();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const deleteMutation = useDeleteProduct();
+  const { product, loading, error } = useProduct(productIdNumber, {
+    enabled: !deleteMutation.isPending && !deleteMutation.isSuccess,
+  });
+  const { categories } = useCategories();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    if (!Number.isInteger(productIdNumber) || productIdNumber <= 0) {
-      setError(true);
-      setLoading(false);
-      return;
-    }
-    const controller = new AbortController();
-    void Promise.all([
-      getProduct(productIdNumber, controller.signal),
-      getCategories(controller.signal),
-    ])
-      .then(([productResponse, categoriesResponse]) => {
-        setProduct(productResponse.data);
-        setCategories(categoriesResponse.data);
-      })
-      .catch((requestError: unknown) => {
-        if (
-          !(isAxiosError(requestError) && requestError.code === "ERR_CANCELED")
-        )
-          setError(true);
-      })
-      .finally(() => setLoading(false));
-    return () => controller.abort();
-  }, [productIdNumber]);
 
   const backToList = () => navigate(`/admin/products${location.search}`);
   const handleDelete = async () => {
     if (!product) return;
-    setDeleting(true);
     try {
-      await deleteProduct(product.id);
+      await deleteMutation.mutateAsync(product.id);
       showToast("Đã xóa sản phẩm.");
       navigate(`/admin/products${location.search}`, { replace: true });
     } catch {
       showToast("Không thể xóa sản phẩm. Vui lòng thử lại.", "error");
-      setDeleting(false);
       setConfirmingDelete(false);
     }
   };
@@ -174,7 +146,7 @@ export function ProductDetailPage() {
       </section>
       {confirmingDelete && (
         <ConfirmDialog
-          busy={deleting}
+          busy={deleteMutation.isPending}
           title="Xóa sản phẩm này?"
           description={`“${product.name}” sẽ bị xóa vĩnh viễn và không thể khôi phục.`}
           onCancel={() => setConfirmingDelete(false)}
