@@ -12,6 +12,7 @@ from app.core.config import get_settings
 from app.core.security import get_current_session_id, get_current_user
 from app.models import User
 from app.schemas.auth import LoginRequest
+from app.schemas.registration import RegisterRequest, ResendOtpRequest, VerifyOtpRequest
 
 
 logger = logging.getLogger("app.security")
@@ -93,6 +94,30 @@ def limit_login(
         redis, scope="login-account", identity=payload.email.strip().lower(),
         limit=settings.rate_limit_login_per_minute, fail_closed=True,
     )
+
+
+def _limit_registration(action: str, request: Request, email: str, redis: Redis | None) -> None:
+    limit = get_settings().rate_limit_registration_per_minute
+    enforce_limit(redis, scope=f"register-{action}-ip", identity=client_ip(request), limit=limit, fail_closed=True)
+    enforce_limit(redis, scope=f"register-{action}-email", identity=email, limit=limit, fail_closed=True)
+
+
+def limit_register_request(
+    request: Request, payload: RegisterRequest, redis: Redis | None = Depends(get_redis)
+) -> None:
+    _limit_registration("request", request, payload.email, redis)
+
+
+def limit_register_resend(
+    request: Request, payload: ResendOtpRequest, redis: Redis | None = Depends(get_redis)
+) -> None:
+    _limit_registration("resend", request, payload.email, redis)
+
+
+def limit_register_verify(
+    request: Request, payload: VerifyOtpRequest, redis: Redis | None = Depends(get_redis)
+) -> None:
+    _limit_registration("verify", request, payload.email, redis)
 
 
 def limit_refresh(request: Request, redis: Redis | None = Depends(get_redis)) -> None:

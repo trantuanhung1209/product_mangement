@@ -23,6 +23,13 @@ logger = logging.getLogger("app.cache")
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     validate_security_configuration(settings)
+    if not settings.resend_api_key:
+        if settings.app_env == "development":
+            logger.warning("RESEND_API_KEY is not set: registration OTPs are printed to the console (APP_ENV=development).")
+        else:
+            logger.warning("RESEND_API_KEY is not set: registration emails cannot be sent and sign-up will return 503.")
+    if settings.app_env != "development" and not settings.jwt_cookie_secure:
+        logger.warning("JWT_COOKIE_SECURE is false: auth cookies can travel over plain HTTP. Enable it once HTTPS is in front of the API.")
     redis: Redis | None = None
     if settings.redis_url is not None:
         redis = Redis.from_url(
