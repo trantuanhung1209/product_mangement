@@ -91,3 +91,16 @@ def test_logs_never_contain_passwords_or_tokens(client: TestClient, auth_engine,
     assert "Request completed" in app_log, "expected the request log to be captured"
     for secret in secrets + ["query-secret-value"]:
         assert secret and secret not in app_log
+
+
+@pytest.mark.database
+def test_validation_errors_do_not_echo_submitted_values(client: TestClient, auth_engine) -> None:
+    password = "Sup3r-Secret-Pw!"
+    missing_email = client.post("/api/v1/auth/login", json={"password": password})
+    wrong_type = client.post("/api/v1/auth/login", json={"email": ["x"], "password": password})
+
+    for response in (missing_email, wrong_type):
+        assert response.status_code == 422
+        assert password not in response.text
+        assert all("input" not in issue for issue in response.json()["detail"])
+        assert all({"loc", "msg", "type"} <= set(issue) for issue in response.json()["detail"])  # clients still get field names

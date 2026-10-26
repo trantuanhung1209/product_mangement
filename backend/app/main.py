@@ -2,7 +2,10 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from redis import Redis
 from redis.exceptions import RedisError
@@ -40,9 +43,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             redis.close()
 
 
+async def validation_error_handler(_: Request, error: RequestValidationError) -> JSONResponse:
+    # FastAPI echoes the submitted value in "input"; it can be a password or token, so drop it.
+    issues = [{key: value for key, value in issue.items() if key != "input"} for issue in error.errors()]
+    return JSONResponse(status_code=422, content={"detail": jsonable_encoder(issues)})
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="Product Catalog API", lifespan=lifespan)
+    app.add_exception_handler(RequestValidationError, validation_error_handler)
 
     app.add_middleware(
         CORSMiddleware,
