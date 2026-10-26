@@ -12,6 +12,7 @@ from app.core.config import get_settings
 from app.core.security import get_current_session_id, get_current_user
 from app.models import User
 from app.schemas.auth import LoginRequest
+from app.schemas.password import ForgotPasswordRequest, ResetPasswordRequest
 from app.schemas.registration import RegisterRequest, ResendOtpRequest, VerifyOtpRequest
 
 
@@ -118,6 +119,33 @@ def limit_register_verify(
     request: Request, payload: VerifyOtpRequest, redis: Redis | None = Depends(get_redis)
 ) -> None:
     _limit_registration("verify", request, payload.email, redis)
+
+
+def _limit_password(action: str, request: Request, email: str, redis: Redis | None) -> None:
+    limit = get_settings().rate_limit_password_per_minute
+    enforce_limit(redis, scope=f"password-{action}-ip", identity=client_ip(request), limit=limit, fail_closed=True)
+    enforce_limit(redis, scope=f"password-{action}-email", identity=email, limit=limit, fail_closed=True)
+
+
+def limit_password_forgot(
+    request: Request, payload: ForgotPasswordRequest, redis: Redis | None = Depends(get_redis)
+) -> None:
+    _limit_password("forgot", request, payload.email, redis)
+
+
+def limit_password_reset(
+    request: Request, payload: ResetPasswordRequest, redis: Redis | None = Depends(get_redis)
+) -> None:
+    _limit_password("reset", request, payload.email, redis)
+
+
+def limit_password_change(
+    request: Request, current_user: User = Depends(get_current_user), redis: Redis | None = Depends(get_redis)
+) -> None:
+    # Changing a password verifies the old one, so a stolen session could use it as a guessing oracle.
+    limit = get_settings().rate_limit_password_per_minute
+    enforce_limit(redis, scope="password-change-user", identity=str(current_user.id), limit=limit, fail_closed=True)
+    enforce_limit(redis, scope="password-change-ip", identity=client_ip(request), limit=limit, fail_closed=True)
 
 
 def limit_refresh(request: Request, redis: Redis | None = Depends(get_redis)) -> None:

@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     trusted_proxy_ips: list[str] = []
     security_hsts_enabled: bool = False
     rate_limit_registration_per_minute: int = 5
+    rate_limit_password_per_minute: int = 5
     resend_api_key: str | None = None
     resend_from_email: str = "noreply@uside.id.vn"
     otp_hmac_key: str | None = None
