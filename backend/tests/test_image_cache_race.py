@@ -1,5 +1,6 @@
+import time
 from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
+from threading import Barrier, Event
 from uuid import uuid4
 
 import pytest
@@ -156,3 +157,33 @@ def test_failed_upload_after_create_leaves_the_product_intact_and_a_retry_succee
         key = session.get(Product, product_id).image_object_key
         assert session.query(ImageCleanupTask).filter_by(object_key=key).count() == 0
     delete_image(key)
+
+
+@pytest.mark.database
+def test_slow_image_processing_does_not_block_other_requests(client: TestClient, auth_engine, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Upload does blocking work (Pillow, storage, DB); it must run off the event loop."""
+    product_id = create_product(auth_engine)
+    admin_client(client, auth_engine)
+    started = Event()
+
+    def slow_process_image(data: bytes):
+        started.set()
+        time.sleep(0.8)
+        return b"webp", 1, 1
+
+    monkeypatch.setattr(product_endpoints, "process_image", slow_process_image)
+    monkeypatch.setattr(product_endpoints, "upload_image", lambda data: f"products/{uuid4()}.webp")
+    headers = csrf_headers(client)
+
+    def upload() -> int:  # the same TestClient shares one event loop between threads
+        return client.post(f"{PRODUCTS}/{product_id}/image", headers=headers, files=jpeg_upload()).status_code
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(upload)
+        assert started.wait(timeout=5)
+        begun = time.perf_counter()
+        assert client.get("/health").status_code == 200
+        health_latency = time.perf_counter() - begun
+        assert future.result(timeout=10) == 200
+
+    assert health_latency < 0.4, f"/health waited {health_latency:.2f}s behind an in-flight upload"

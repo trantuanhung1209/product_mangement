@@ -1,4 +1,3 @@
-import asyncio
 from io import BytesIO
 
 import pytest
@@ -83,7 +82,7 @@ def test_failed_image_metadata_commit_queues_uploaded_object_for_retry(monkeypat
     monkeypatch.setattr(product_endpoints, "queue_image_cleanup", lambda _, key: queued.append(key))
 
     with pytest.raises(HTTPException, match="could not be saved"):
-        asyncio.run(product_endpoints.upload_product_image(1, upload_file(), db, None, object()))
+        product_endpoints.upload_product_image(1, upload_file(), db, None, object())
 
     assert db.rolled_back and db.commits == 2
     assert queued == ["products/new.webp"]
@@ -99,5 +98,5 @@ def test_cleanup_failure_does_not_fail_successful_image_replace(monkeypatch) -> 
     monkeypatch.setattr(product_endpoints, "run_image_cleanup", lambda _: (_ for _ in ()).throw(RuntimeError("MinIO down")))
     monkeypatch.setattr(product_endpoints.ProductResponse, "model_validate", lambda _: "saved")
 
-    assert asyncio.run(product_endpoints.upload_product_image(1, upload_file(), db, None, object())) == "saved"
+    assert product_endpoints.upload_product_image(1, upload_file(), db, None, object()) == "saved"
     assert db.commits == 1 and db.rolled_back
