@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.cache import get_redis
 from app.core.config import get_settings
-from app.core.rate_limit import limit_login, limit_refresh, limit_session_operation
+from app.core.rate_limit import limit_login, limit_refresh, limit_session_operation, limit_user_mutation
 from app.core.security import (
     ACCESS_TOKEN_COOKIE,
     CSRF_TOKEN_COOKIE,
@@ -89,6 +89,7 @@ def revoke_others(
     current_user: User = Depends(get_current_user),
     current_session_id: str = Depends(get_current_session_id),
     _: None = Depends(require_csrf),
+    __: None = Depends(limit_user_mutation),
     redis: Redis | None = Depends(get_redis),
 ) -> RevokeSessionsResponse:
     return RevokeSessionsResponse(revoked_count=revoke_other_user_sessions(redis, current_user.id, current_session_id))
@@ -102,6 +103,7 @@ def revoke_single_session(
     current_user: User = Depends(get_current_user),
     current_session_id: str = Depends(get_current_session_id),
     _: None = Depends(require_csrf),
+    __: None = Depends(limit_user_mutation),
     redis: Redis | None = Depends(get_redis),
 ) -> Response:
     if not revoke_user_session(redis, current_user.id, session_id):

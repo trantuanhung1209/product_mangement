@@ -106,3 +106,25 @@ def test_login_limit_is_per_ip_and_per_account(
     assert_limited(client.post("/api/v1/auth/login", json={"email": first.upper(), "password": "wrong"}))  # email is normalized
     assert_limited(client.post("/api/v1/auth/login", json={"email": second, "password": "wrong"}))  # the IP budget is spent too
     get_settings.cache_clear()
+
+
+@pytest.mark.database
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/v1/auth/sessions/does-not-exist",
+        "/api/v1/auth/sessions/others",
+        "/api/v1/admin/users/1/sessions/abc",
+        "/api/v1/admin/users/1/sessions",
+    ],
+)
+def test_session_revocation_endpoints_are_rate_limited_per_user(
+    path: str, client: TestClient, auth_engine, auth_redis: Redis, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    set_limit(monkeypatch, "RATE_LIMIT_MUTATION_PER_MINUTE", 1)
+    email, password = create_user(auth_engine, role=UserRole.ADMIN)
+    login(client, email, password)
+
+    assert client.delete(path, headers=csrf_headers(client)).status_code != 429
+    assert_limited(client.delete(path, headers=csrf_headers(client)))
+    get_settings.cache_clear()
