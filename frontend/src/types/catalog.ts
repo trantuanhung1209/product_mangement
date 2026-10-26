@@ -94,6 +94,12 @@ export interface AdminUser {
   is_active: boolean;
 }
 
+export interface AdminUserSessions {
+  user: AuthUser;
+  active_session_count: number;
+  sessions: LoginSession[];
+}
+
 export interface AdminUserList {
   items: AdminUser[];
   total: number;
