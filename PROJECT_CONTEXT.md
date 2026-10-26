@@ -81,6 +81,8 @@ Product list, detail và các trang cursor có cache Redis, fallback PostgreSQL 
 - Mutation yêu cầu CSRF header. Frontend tự refresh một lần khi nhận 401.
 - Auth là fail-closed: Redis không truy cập được thì trả 503.
 
+**Đăng ký:** `/register` → OTP 6 số qua Resend (Redis, TTL 300s, tối đa 5 lần sai, cooldown 60s) → tạo user USER và tự đăng nhập. Xem `docs/PHASE_17_REGISTRATION.md`.
+
 **Rate limit:** Redis, fixed window. Login, refresh, logout, mutation admin, upload ảnh và public search có giới hạn riêng; vượt giới hạn trả 429 kèm `Retry-After`. Identity được HMAC bằng `RATE_LIMIT_KEY_SECRET` trước khi thành key Redis.
 
 **Ảnh sản phẩm:**
@@ -111,10 +113,11 @@ Tạo từ `.env.example`. Các nhóm chính:
 - **Database:** `DATABASE_URL`, `DATABASE_POOL_SIZE`, `DATABASE_MAX_OVERFLOW`
 - **Redis:** `REDIS_URL`, `REDIS_CONNECT_TIMEOUT_SECONDS`, `REDIS_SOCKET_TIMEOUT_SECONDS`
 - **MinIO:** `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`, `MINIO_SECURE`
-- **Secret bắt buộc (ba giá trị):**
+- **Secret bắt buộc (bốn giá trị, xem OTP_HMAC_KEY bên dưới):**
   - `JWT_SECRET_KEY`: ký JWT.
   - `PRODUCT_CURSOR_HMAC_KEY`: ký cursor phân trang.
   - `RATE_LIMIT_KEY_SECRET`: HMAC identity trong key rate limit.
+  - `OTP_HMAC_KEY`: HMAC cho OTP đăng ký (secret thứ tư, Phase 17).
   - Mỗi giá trị phải ≥ 32 ký tự, khác nhau, không chứa placeholder (`change_me`, `replace_me`, `your_secret`, `generate_a`, `example`). Nếu không đạt, backend không khởi động. Sinh bằng `openssl rand -hex 32`.
 - **Auth và bảo mật khác:** `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`, `JWT_REFRESH_TOKEN_EXPIRE_DAYS`, `JWT_COOKIE_SECURE`, `RATE_LIMIT_*_PER_MINUTE`, `TRUSTED_PROXY_IPS`, `SECURITY_HSTS_ENABLED`
 - **Ứng dụng:** `CORS_ORIGINS`, `VITE_API_URL`

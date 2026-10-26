@@ -39,6 +39,12 @@ Tạo admin: `docker compose --env-file .env.docker exec backend python -m scrip
 (cần terminal tương tác để nhập mật khẩu; thêm `-it` nếu cần). Dừng: `docker compose --env-file .env.docker down`.
 **Không dùng `down -v`**: nó xóa volume PostgreSQL/MinIO của stack.
 
+### Đăng ký bằng OTP
+
+`/register` tạo tài khoản USER sau khi xác minh email bằng mã 6 số gửi qua Resend. Cần
+`OTP_HMAC_KEY` (secret thứ tư), `RESEND_API_KEY` và domain đã verified; ở dev để trống key và đặt
+`APP_ENV=development` thì OTP in ra terminal backend. Chi tiết: `docs/PHASE_17_REGISTRATION.md`.
+
 ## Yêu cầu
 
 - macOS với Python 3.11+ và Node.js 20+
