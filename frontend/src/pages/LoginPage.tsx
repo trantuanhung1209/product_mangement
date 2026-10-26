@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { isAxiosError } from "axios";
 import { ArrowRight, LockKeyhole } from "lucide-react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
+import { PasswordInput } from "../components/feedback/PasswordInput";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function LoginPage() {
@@ -78,16 +79,12 @@ export function LoginPage() {
             autoFocus
           />
         </label>
-        <label>
-          Mật khẩu
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="current-password"
-            required
-          />
-        </label>
+        <PasswordInput
+          label="Mật khẩu"
+          value={password}
+          onChange={setPassword}
+          autoComplete="current-password"
+        />
         <button className="primary-button login-submit" disabled={submitting}>
           {submitting ? (
             "Đang đăng nhập..."
@@ -97,6 +94,9 @@ export function LoginPage() {
             </>
           )}
         </button>
+        <p className="auth-switch">
+          Chưa có tài khoản? <Link to="/register">Đăng ký</Link>
+        </p>
       </form>
     </main>
   );

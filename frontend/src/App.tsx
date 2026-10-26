@@ -9,6 +9,7 @@ import { ProductsPage } from "./pages/ProductsPage";
 import { ToastProvider } from "./components/feedback/Toast";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { LoginPage } from "./pages/LoginPage";
+import { RegisterPage } from "./pages/RegisterPage";
 import { SessionsPage } from "./pages/SessionsPage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { AdminUserSessionsPage } from "./pages/AdminUserSessionsPage";
@@ -149,6 +150,7 @@ export function App() {
             }
           />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route
             path="/account/sessions"
             element={

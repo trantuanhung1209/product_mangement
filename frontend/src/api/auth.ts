@@ -4,6 +4,17 @@ import type { AuthUser } from "../types/catalog";
 
 export const getCurrentUser = (signal?: AbortSignal) => api.get<AuthUser>("/api/v1/auth/me", { signal });
 export const login = (email: string, password: string) => api.post<AuthUser>("/api/v1/auth/login", { email, password });
+export interface RegistrationAccepted {
+  message: string;
+  expires_in_seconds: number;
+  resend_in_seconds: number;
+}
+export const requestRegistrationOtp = (email: string, password: string) =>
+  api.post<RegistrationAccepted>("/api/v1/auth/register/request-otp", { email, password });
+export const resendRegistrationOtp = (email: string) =>
+  api.post<RegistrationAccepted>("/api/v1/auth/register/resend-otp", { email });
+export const verifyRegistrationOtp = (email: string, otp: string) =>
+  api.post<AuthUser>("/api/v1/auth/register/verify-otp", { email, otp });
 export const logout = () => api.post("/api/v1/auth/logout");
 export const refresh = () => api.post("/api/v1/auth/refresh");
 export const getSessions = (signal?: AbortSignal) => api.get<LoginSession[]>("/api/v1/auth/sessions", { signal });
