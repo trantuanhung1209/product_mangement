@@ -38,6 +38,15 @@ def product_list_cache_key(redis: Redis | None, normalized_query: str) -> str | 
     return f"{CACHE_NAMESPACE}:products:list:v{version}:{normalized_query}"
 
 
+def product_cursor_cache_key(redis: Redis | None, normalized_query: str) -> str | None:
+    # Shares the list version, so every product change that invalidates offset lists
+    # invalidates cursor pages too. The "cursor:" segment keeps the two key spaces apart.
+    version = _version(redis, LIST_VERSION_KEY)
+    if version is None:
+        return None
+    return f"{CACHE_NAMESPACE}:products:list:v{version}:cursor:{normalized_query}"
+
+
 def product_detail_cache_key(redis: Redis | None, product_id: int) -> str | None:
     version = _version(redis, DETAIL_VERSION_KEY)
     if version is None:
