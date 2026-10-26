@@ -22,7 +22,7 @@
 | Object storage | MinIO (ảnh sản phẩm, bucket private) |
 | Frontend | React, Vite, TypeScript, React Router, Axios, lucide-react |
 | Môi trường | macOS; Docker Desktop cho PostgreSQL/Redis/MinIO; backend và frontend chạy trực tiếp trên máy |
-| Deploy | Chưa xác định. Không có Dockerfile cho backend hoặc frontend |
+| Deploy | Chưa xác định. Có stack Full Docker để chạy local (`docker-compose.yml`: backend, frontend + Nginx, PostgreSQL, Redis, MinIO), chưa có HTTPS |
 
 ## 3. Cấu trúc thư mục
 
@@ -32,8 +32,10 @@ product_mangement/
 ├── PROJECT_CONTEXT.md             # File này
 ├── .env.example                   # Biến môi trường mẫu (placeholder)
 ├── .gitignore                     # Ignore .env.*, giữ .env.example
+├── docker-compose.yml             # Full Docker: 5 service, Nginx cổng 127.0.0.1:8080
+├── .env.docker.example            # Biến môi trường cho Full Docker (placeholder)
 ├── infra/
-│   └── compose.yml                # PostgreSQL, Redis, MinIO (chỉ infra)
+│   └── compose.yml                # Chế độ dev: chỉ PostgreSQL, Redis, MinIO
 ├── backend/
 │   ├── pyproject.toml             # Dependencies, pytest config
 │   ├── alembic.ini, migrations/   # Migration database
@@ -88,6 +90,8 @@ Replace/delete ghi task cleanup trong PostgreSQL cùng transaction với Product
 **Phân trang sản phẩm:** có hai API. Offset (`/products`) cho admin, trang chủ và `/shop` khi chọn sắp xếp khác; cursor (`/products/cursor`, ký HMAC bằng `PRODUCT_CURSOR_HMAC_KEY`, limit 1–100) cho `/shop` ở thứ tự mặc định với nút “Tải thêm”. Chi tiết: `docs/PHASE_13_LEARNING.md` mục 12.
 
 ## 5. Cấu hình và cách chạy
+
+Có hai chế độ: dev (bên dưới) và Full Docker (`docker compose --env-file .env.docker up --build -d`, truy cập `http://localhost:8080`; xem README và `docs/PHASE_16_DOCKER.md`).
 
 ### Infra
 
@@ -163,7 +167,7 @@ npm run build
 1. **Dependency đã ghim (Phase 14B/15):** frontend dùng version chính xác; backend ghim trong `pyproject.toml` và có `backend/requirements.lock`. Nâng cấp phải chạy lại toàn bộ test.
 2. **Frontend:** 76 test Vitest (API được mock) gồm product, category, giỏ hàng, sessions, admin users và cache theo đăng nhập. Chưa có E2E với backend/trình duyệt thật và chưa có ESLint.
 3. **Test backend phụ thuộc hạ tầng:** cần PostgreSQL, Redis và MinIO test (xem `docs/PHASE_15_TESTING.md`); thiếu thì test bị skip và không có xác nhận đầy đủ. Lần chạy đủ gần nhất: 111 passed, 0 skipped.
-4. **Chưa có cấu hình deploy:** không có Dockerfile cho backend/frontend. README nói CSP frontend sẽ được thiết kế và test riêng.
+4. **Chưa có cấu hình deploy thật:** Phase 16 thêm Dockerfile và Nginx để chạy local (`docs/PHASE_16_DOCKER.md`) nhưng chưa có HTTPS, backup volume, mật khẩu Redis. README nói CSP frontend sẽ được thiết kế và test riêng.
 5. **Hiệu năng cursor pagination chưa đo:** `docs/PHASE_13_LEARNING.md` ghi cần chạy `EXPLAIN (ANALYZE, BUFFERS)` khi có dữ liệu đủ lớn trước khi thêm index.
 6. **Kiểm tra secret chỉ là heuristic:** độ dài, tính khác nhau, placeholder, ít ký tự khác nhau và khối lặp. Không đo được entropy thật; sinh secret bằng `openssl rand -hex 32`.
 7. **Lịch sử commit:** commit `6788cf7` ghi `Co-Authored-By: Claude Sonnet 5.5`. Chưa sửa vì cần rewrite lịch sử.
