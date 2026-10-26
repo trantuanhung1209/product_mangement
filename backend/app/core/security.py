@@ -104,6 +104,10 @@ def _origin_allowed(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Origin is not allowed.")
 
 
+def require_allowed_origin(request: Request) -> None:
+    _origin_allowed(request)
+
+
 def create_session(user: User, redis: Redis | None, user_agent: str | None = None) -> tuple[str, str, str]:
     if redis is None:
         raise _unavailable()

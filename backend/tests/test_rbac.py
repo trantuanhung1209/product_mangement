@@ -46,6 +46,10 @@ LOGIN_REQUIRED = [
 PUBLIC = [
     ("GET", "/health"),
     ("POST", "/api/v1/auth/login"),
+    # Sign-up is public by design; each route is Origin-checked and rate limited.
+    ("POST", "/api/v1/auth/register/request-otp"),
+    ("POST", "/api/v1/auth/register/resend-otp"),
+    ("POST", "/api/v1/auth/register/verify-otp"),
     ("POST", "/api/v1/auth/refresh"),  # authenticated by the refresh cookie, not the access cookie
     ("GET", "/api/v1/categories"),
     ("GET", "/api/v1/products"),
