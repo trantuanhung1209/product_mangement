@@ -204,9 +204,6 @@ function HeroCarousel() {
       <div className="store-hero-shade" />
       <div className="storefront-container store-hero-content">
         <div className="store-hero-copy">
-          <p className="store-kicker">
-            <Leaf size={15} aria-hidden="true" /> Product Catalog
-          </p>
           <h1>{slide.title}</h1>
           <p>{slide.description}</p>
           <div className="store-hero-actions">

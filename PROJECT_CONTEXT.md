@@ -85,7 +85,7 @@ Product list và detail có cache Redis, fallback PostgreSQL khi Redis lỗi.
 upload (JPEG/PNG/WebP, tối đa 5 MB) → chuẩn hóa thành WebP → lưu MinIO bucket private.
 Replace/delete ghi task cleanup trong PostgreSQL cùng transaction với Product, rồi mới xóa object. Client đọc ảnh qua `/api/v1/products/{id}/image`.
 
-**Phân trang sản phẩm:** cursor có chữ ký HMAC bằng `PRODUCT_CURSOR_HMAC_KEY`; limit từ 1 đến 100, mặc định 20.
+**Phân trang sản phẩm:** có hai API. Offset (`/products`) cho admin, trang chủ và `/shop` khi chọn sắp xếp khác; cursor (`/products/cursor`, ký HMAC bằng `PRODUCT_CURSOR_HMAC_KEY`, limit 1–100) cho `/shop` ở thứ tự mặc định với nút “Tải thêm”. Chi tiết: `docs/PHASE_13_LEARNING.md` mục 12.
 
 ## 5. Cấu hình và cách chạy
 
@@ -160,12 +160,12 @@ npm run build
 
 **Rủi ro và việc còn mở:**
 
-1. **Phiên bản frontend không cố định:** `frontend/package.json` dùng `"latest"` cho React, Vite, Axios, TypeScript và các package liên quan. Kết quả build có thể thay đổi theo thời gian.
-2. **Frontend test còn mỏng:** Vitest (Phase 14) chỉ phủ Product/Category query, mutation và auth cache; chưa có test cho giỏ hàng, sessions, admin users, chưa có ESLint.
-3. **Test backend phụ thuộc hạ tầng:** nếu không có PostgreSQL/Redis test, phần lớn test integration bị skip. Lúc này không có xác nhận đầy đủ.
+1. **Dependency đã ghim (Phase 14B/15):** frontend dùng version chính xác; backend ghim trong `pyproject.toml` và có `backend/requirements.lock`. Nâng cấp phải chạy lại toàn bộ test.
+2. **Frontend:** 76 test Vitest (API được mock) gồm product, category, giỏ hàng, sessions, admin users và cache theo đăng nhập. Chưa có E2E với backend/trình duyệt thật và chưa có ESLint.
+3. **Test backend phụ thuộc hạ tầng:** cần PostgreSQL, Redis và MinIO test (xem `docs/PHASE_15_TESTING.md`); thiếu thì test bị skip và không có xác nhận đầy đủ. Lần chạy đủ gần nhất: 111 passed, 0 skipped.
 4. **Chưa có cấu hình deploy:** không có Dockerfile cho backend/frontend. README nói CSP frontend sẽ được thiết kế và test riêng.
 5. **Hiệu năng cursor pagination chưa đo:** `docs/PHASE_13_LEARNING.md` ghi cần chạy `EXPLAIN (ANALYZE, BUFFERS)` khi có dữ liệu đủ lớn trước khi thêm index.
-6. **Secret không tự kiểm tra độ mạnh:** validation chỉ kiểm tra độ dài, tính khác nhau và một số từ khóa placeholder. Secret yếu nhưng không chứa từ khóa đó vẫn qua được.
+6. **Kiểm tra secret chỉ là heuristic:** độ dài, tính khác nhau, placeholder, ít ký tự khác nhau và khối lặp. Không đo được entropy thật; sinh secret bằng `openssl rand -hex 32`.
 7. **Lịch sử commit:** commit `6788cf7` ghi `Co-Authored-By: Claude Sonnet 5.5`. Chưa sửa vì cần rewrite lịch sử.
 
 ## 7. Tài liệu liên quan

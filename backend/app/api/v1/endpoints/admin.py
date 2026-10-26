@@ -3,6 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.cache import get_redis
+from app.core.rate_limit import limit_user_mutation
 from app.core.security import list_user_sessions, require_admin, require_admin_with_csrf, revoke_user_session
 from app.db.database import get_db
 from app.models import User
@@ -39,14 +40,20 @@ def user_sessions(user_id: int, db: Session = Depends(get_db), redis=Depends(get
 
 
 @router.delete("/users/{user_id}/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
-def revoke_session(user_id: int, session_id: str, redis=Depends(get_redis), _: User = Depends(require_admin_with_csrf)) -> Response:
+def revoke_session(
+    user_id: int, session_id: str, redis=Depends(get_redis), _: User = Depends(require_admin_with_csrf),
+    __: None = Depends(limit_user_mutation),
+) -> Response:
     if not revoke_user_session(redis, user_id, session_id):
         raise HTTPException(status_code=404, detail="Session not found.")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete("/users/{user_id}/sessions", response_model=RevokeSessionsResponse)
-def revoke_all_sessions(user_id: int, redis=Depends(get_redis), _: User = Depends(require_admin_with_csrf)) -> RevokeSessionsResponse:
+def revoke_all_sessions(
+    user_id: int, redis=Depends(get_redis), _: User = Depends(require_admin_with_csrf),
+    __: None = Depends(limit_user_mutation),
+) -> RevokeSessionsResponse:
     count = 0
     for session in list_user_sessions(redis, user_id):
         count += int(revoke_user_session(redis, user_id, str(session["session_id"])))

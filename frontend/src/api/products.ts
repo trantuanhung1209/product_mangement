@@ -1,8 +1,19 @@
 import { api } from "./client";
-import type { Product, ProductListResponse, ProductPayload, ProductQuery } from "../types/catalog";
+import type {
+  Product,
+  ProductCursorFilters,
+  ProductCursorResponse,
+  ProductListResponse,
+  ProductPayload,
+  ProductQuery,
+} from "../types/catalog";
 
 export function getProducts(params: ProductQuery, signal: AbortSignal) {
   return api.get<ProductListResponse>("/api/v1/products", { params, signal });
+}
+
+export function getProductsCursor(params: ProductCursorFilters & { cursor?: string }, signal: AbortSignal) {
+  return api.get<ProductCursorResponse>("/api/v1/products/cursor", { params, signal });
 }
 
 export function getProduct(productId: number, signal: AbortSignal) {

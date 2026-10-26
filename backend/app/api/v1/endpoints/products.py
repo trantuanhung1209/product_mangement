@@ -53,13 +53,13 @@ def product_image(product_id: int, db: Session = Depends(get_db)) -> Response:
 
 
 @router.post("/{product_id}/image", response_model=ProductResponse)
-async def upload_product_image(
+def upload_product_image(
     product_id: int, file: UploadFile = File(...), db: Session = Depends(get_db),
     redis: Redis | None = Depends(get_redis), _: object = Depends(require_admin_with_csrf),
     __: None = Depends(limit_image_upload),
 ) -> ProductResponse:
     product = product_service.get_product_for_update_or_404(db, product_id)
-    data = await file.read(5 * 1024 * 1024 + 1)
+    data = file.file.read(5 * 1024 * 1024 + 1)
     processed, width, height = process_image(data)
     new_key = upload_image(processed)
     old_key = product.image_object_key

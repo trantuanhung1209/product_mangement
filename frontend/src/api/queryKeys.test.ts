@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { categoryKeys, productKeys } from "./queryKeys";
 import { makeQuery } from "../test/testUtils";
+import type { ProductCursorFilters } from "../types/catalog";
 
 describe("productKeys", () => {
   it("separates every filter, sort and page into its own cache entry", () => {
@@ -42,5 +43,28 @@ describe("productKeys", () => {
   it("keeps category keys outside the product tree", () => {
     expect(categoryKeys.lists()[0]).toBe("categories");
     expect(categoryKeys.all[0]).not.toBe(productKeys.all[0]);
+  });
+});
+
+describe("productKeys.cursorList", () => {
+  const base: ProductCursorFilters = { limit: 8 };
+
+  it("separates every cursor filter into its own entry and ignores the cursor itself", () => {
+    const variants: ProductCursorFilters[] = [
+      { limit: 16 },
+      { limit: 8, search: "phone" },
+      { limit: 8, category_id: 3 },
+      { limit: 8, min_price: "10" },
+      { limit: 8, max_price: "99" },
+    ];
+    const hashes = new Set([base, ...variants].map((filters) => hashKey(productKeys.cursorList(filters))));
+    expect(hashes.size).toBe(variants.length + 1);
+    const withCursor = { ...base, cursor: "abc" } as ProductCursorFilters;
+    expect(hashKey(productKeys.cursorList(withCursor))).toBe(hashKey(productKeys.cursorList(base)));
+  });
+
+  it("lives under lists() so list invalidation reaches it, but never collides with an offset list", () => {
+    expect(productKeys.cursorList(base).slice(0, 2)).toEqual(productKeys.lists());
+    expect(hashKey(productKeys.cursorList(base))).not.toBe(hashKey(productKeys.list(makeQuery())));
   });
 });

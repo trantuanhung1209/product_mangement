@@ -45,3 +45,33 @@ def test_placeholder_secret_is_rejected_without_leaking_value(placeholder: str) 
     with pytest.raises(RuntimeError, match="RATE_LIMIT_KEY_SECRET") as error:
         validate_security_configuration(settings(rate_limit_key_secret=placeholder))
     assert placeholder not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "weak",
+    [
+        "a" * 40,
+        "ab" * 20,
+        "0123456789" * 4,
+        "abcd" * 10,
+    ],
+)
+def test_low_entropy_and_repeating_secrets_are_rejected_without_leaking_them(weak: str) -> None:
+    with pytest.raises(RuntimeError, match="weak") as error:
+        validate_security_configuration(settings(product_cursor_hmac_key=weak))
+    assert "PRODUCT_CURSOR_HMAC_KEY" in str(error.value)
+    assert weak not in str(error.value)
+
+
+@pytest.mark.parametrize("strong", ["a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6", "Zx9-Qw3_Lm7Tk2Vb8Nc4Rd6Hf1Jp5Sy0"])
+def test_ordinary_random_looking_secrets_are_accepted(strong: str) -> None:
+    validate_security_configuration(settings(product_cursor_hmac_key=strong))
+
+
+def test_random_hex_secrets_are_never_flagged_as_weak() -> None:
+    import secrets
+
+    for _ in range(2000):
+        validate_security_configuration(
+            settings(jwt_secret_key=secrets.token_hex(16), product_cursor_hmac_key=secrets.token_hex(16), rate_limit_key_secret=secrets.token_hex(16))
+        )
