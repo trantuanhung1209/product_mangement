@@ -1,23 +1,18 @@
 import { useEffect, useState } from "react";
-import { isAxiosError } from "axios";
 import { ArrowLeft, ArrowRight, ImageOff, PackageCheck, ShoppingCart } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
-import { getCategories } from "../api/categories";
 import { apiAssetUrl } from "../api/client";
-import { getProduct } from "../api/products";
 import { useAuth } from "../auth/AuthContext";
 import { useCart } from "../cart/CartContext";
 import { QuantityControl } from "../components/storefront/QuantityControl";
 import { useToast } from "../components/feedback/Toast";
-import type { Category, Product } from "../types/catalog";
+import { useCategories } from "../hooks/useCategories";
+import { useProduct } from "../hooks/useProduct";
 import { formatPrice } from "../utils/format";
 
 export function StorefrontProductPage() {
   const { productId } = useParams();
-  const [product, setProduct] = useState<Product>();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [error, setError] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
   const { user } = useAuth();
@@ -27,36 +22,10 @@ export function StorefrontProductPage() {
   const location = useLocation();
   const productIdNumber = Number(productId);
 
-  useEffect(() => {
-    if (!Number.isInteger(productIdNumber) || productIdNumber <= 0) {
-      setError(true);
-      return;
-    }
-    const controller = new AbortController();
-    let isCurrent = true;
-    setError(false);
-    void Promise.all([
-      getProduct(productIdNumber, controller.signal),
-      getCategories(controller.signal),
-    ])
-      .then(([productResponse, categoriesResponse]) => {
-        if (!isCurrent) return;
-        setProduct(productResponse.data);
-        setCategories(categoriesResponse.data);
-        setQuantity(1);
-      })
-      .catch((requestError: unknown) => {
-        if (
-          isCurrent &&
-          !(isAxiosError(requestError) && requestError.code === "ERR_CANCELED")
-        )
-          setError(true);
-      });
-    return () => {
-      isCurrent = false;
-      controller.abort();
-    };
-  }, [productIdNumber]);
+  const { product, error } = useProduct(productIdNumber);
+  const { categories } = useCategories();
+
+  useEffect(() => setQuantity(1), [productIdNumber]);
 
   if (error)
     return (

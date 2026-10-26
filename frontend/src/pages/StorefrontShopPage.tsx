@@ -2,14 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 
-import { getCategories } from "../api/categories";
 import shopIntroImage from "../assets/store-hero-02.webp";
 import { ProductFilters } from "../components/products/ProductFilters";
 import { StoreProductCard } from "../components/storefront/StoreProductCard";
+import { useCategories } from "../hooks/useCategories";
 import { useDebounce } from "../hooks/useDebounce";
 import { useProducts } from "../hooks/useProducts";
 import type {
-  Category,
   ProductQuery,
   SortBy,
   SortOrder,
@@ -58,7 +57,7 @@ export function StorefrontShopPage() {
   const [search, setSearch] = useState(query.search ?? "");
   const debouncedSearch = useDebounce(search);
   const searchWasCleared = useRef(false);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { categories } = useCategories();
   const { data, error, loading, retry } = useProducts(query);
   const categoryNames = new Map(
     categories.map((category) => [category.id, category.name]),
@@ -85,14 +84,6 @@ export function StorefrontShopPage() {
     if (debouncedSearch.trim() !== (query.search ?? ""))
       update({ search: debouncedSearch.trim() || undefined });
   }, [debouncedSearch, query.search, update]);
-  useEffect(() => {
-    const controller = new AbortController();
-    void getCategories(controller.signal)
-      .then((response) => setCategories(response.data))
-      .catch(() => setCategories([]));
-    return () => controller.abort();
-  }, []);
-
   const handleFiltersChange = (changes: Record<string, string | undefined>) => {
     if ("search" in changes && changes.search === undefined) {
       searchWasCleared.current = true;

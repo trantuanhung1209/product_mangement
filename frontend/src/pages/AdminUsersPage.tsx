@@ -1,20 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronRight, Search, Users } from "lucide-react";
 import { Link } from "react-router-dom";
-import * as authApi from "../api/auth";
-import { useToast } from "../components/feedback/Toast";
-import type { AdminUserList } from "../types/catalog";
+import { useAdminUsers } from "../hooks/useAdminUsers";
 
 export function AdminUsersPage() {
-  const { showToast } = useToast();
-  const [data, setData] = useState<AdminUserList>();
   const [search, setSearch] = useState("");
-  const load = () =>
-    void authApi
-      .getAdminUsers({ page: 1, page_size: 20, search: search || undefined })
-      .then((response) => setData(response.data))
-      .catch(() => showToast("Không thể tải người dùng.", "error"));
-  useEffect(load, []);
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const { data, error, retry } = useAdminUsers({ page: 1, page_size: 20, search: appliedSearch || undefined });
+  const applySearch = () => (search === appliedSearch ? retry() : setAppliedSearch(search));
   return (
     <>
       <header className="page-header">
@@ -35,11 +28,16 @@ export function AdminUsersPage() {
             placeholder="Tìm theo email"
           />
         </label>
-        <button className="secondary-button" onClick={load}>
+        <button className="secondary-button" onClick={applySearch}>
           Tìm kiếm
         </button>
       </div>
-      {!data ? (
+      {error ? (
+        <section className="state-panel">
+          <h2>Không thể tải người dùng</h2>
+          <button type="button" className="primary-button" onClick={retry}>Thử lại</button>
+        </section>
+      ) : !data ? (
         <section className="state-panel">
           <p>Đang tải người dùng...</p>
         </section>

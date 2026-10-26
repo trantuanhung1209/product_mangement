@@ -1,50 +1,35 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronRight, Monitor } from "lucide-react";
 
-import * as authApi from "../api/auth";
 import { useAuth } from "../auth/AuthContext";
 import { ConfirmDialog } from "../components/feedback/ConfirmDialog";
 import { useToast } from "../components/feedback/Toast";
+import { useMySessions, useRevokeOtherSessions, useRevokeSession } from "../hooks/useSessions";
 import type { LoginSession } from "../types/catalog";
 import { formatDate } from "../utils/format";
 
 export function SessionsPage() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const { showToast } = useToast();
-  const [sessions, setSessions] = useState<LoginSession[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { sessions, loading, error, retry } = useMySessions(user?.id);
+  const revokeOne = useRevokeSession();
+  const revokeOthers = useRevokeOtherSessions();
   const [target, setTarget] = useState<LoginSession | "others" | null>(null);
-  const [busy, setBusy] = useState(false);
-  const load = () => {
-    setLoading(true);
-    void authApi
-      .getSessions()
-      .then((response) => setSessions(response.data))
-      .catch(() => showToast("Không thể tải phiên đăng nhập.", "error"))
-      .finally(() => setLoading(false));
-  };
-  useEffect(load, []);
+  const busy = revokeOne.isPending || revokeOthers.isPending;
   const revoke = async () => {
     if (!target) return;
-    setBusy(true);
     try {
       if (target === "others") {
-        const response = await authApi.revokeOtherSessions();
-        showToast(`Đã đăng xuất ${response.data.revoked_count} thiết bị khác.`);
-        load();
+        const result = await revokeOthers.mutateAsync();
+        showToast(`Đã đăng xuất ${result.revoked_count} thiết bị khác.`);
       } else {
-        await authApi.revokeSession(target.session_id);
+        await revokeOne.mutateAsync(target.session_id);
         if (target.is_current) await logout();
-        else {
-          showToast("Đã thu hồi phiên đăng nhập.");
-          load();
-        }
+        else showToast("Đã thu hồi phiên đăng nhập.");
       }
       setTarget(null);
     } catch {
       showToast("Không thể thu hồi phiên. Vui lòng thử lại.", "error");
-    } finally {
-      setBusy(false);
     }
   };
   return (
@@ -72,6 +57,11 @@ export function SessionsPage() {
       {loading ? (
         <section className="state-panel">
           <p>Đang tải phiên đăng nhập...</p>
+        </section>
+      ) : error ? (
+        <section className="state-panel">
+          <h2>Không thể tải phiên đăng nhập</h2>
+          <button type="button" className="primary-button" onClick={retry}>Thử lại</button>
         </section>
       ) : (
         <section className="session-list">

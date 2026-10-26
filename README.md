@@ -233,11 +233,12 @@ pytest tests/test_rate_limit.py -q
 ```
 
 `TEST_REDIS_URL` dùng Redis database số 15; cache tests chỉ flush database này,
-không đụng Redis development database số 0. Frontend hiện không có test runner;
-kiểm tra tối thiểu là:
+không đụng Redis development database số 0. Frontend dùng Vitest (API được mock,
+không cần backend); chạy cùng typecheck và build:
 
 ```bash
 cd frontend
+npm test
 npm run typecheck
 npm run build
 ```

@@ -1,49 +1,36 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronRight, Monitor } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import * as authApi from "../api/auth";
 import { ConfirmDialog } from "../components/feedback/ConfirmDialog";
 import { useToast } from "../components/feedback/Toast";
-import type { AuthUser, LoginSession } from "../types/catalog";
+import { useAdminUserSessions, useRevokeAdminSessions } from "../hooks/useAdminUsers";
+import type { LoginSession } from "../types/catalog";
 import { formatDate } from "../utils/format";
-
-type Data = {
-  user: AuthUser;
-  active_session_count: number;
-  sessions: LoginSession[];
-};
 
 export function AdminUserSessionsPage() {
   const { userId = "" } = useParams();
   const { showToast } = useToast();
-  const [data, setData] = useState<Data>();
+  const { data, error, retry } = useAdminUserSessions(userId);
+  const revokeMutation = useRevokeAdminSessions(userId);
   const [target, setTarget] = useState<LoginSession | "all" | null>(null);
-  const [busy, setBusy] = useState(false);
-  const load = () =>
-    void authApi
-      .getAdminUserSessions(userId)
-      .then((response) => setData(response.data))
-      .catch(() => showToast("Không thể tải phiên người dùng.", "error"));
-  useEffect(load, [userId]);
+  const busy = revokeMutation.isPending;
   const revoke = async () => {
     if (!target) return;
-    setBusy(true);
     try {
-      if (target === "all") {
-        const response = await authApi.revokeAllAdminSessions(userId);
-        showToast(`Đã thu hồi ${response.data.revoked_count} phiên.`);
-      } else {
-        await authApi.revokeAdminSession(userId, target.session_id);
-        showToast("Đã thu hồi phiên.");
-      }
+      const result = await revokeMutation.mutateAsync(target === "all" ? null : target.session_id);
+      showToast(result ? `Đã thu hồi ${result.revoked_count} phiên.` : "Đã thu hồi phiên.");
       setTarget(null);
-      load();
     } catch {
       showToast("Không thể thu hồi phiên.", "error");
-    } finally {
-      setBusy(false);
     }
   };
+  if (error)
+    return (
+      <section className="state-panel">
+        <h2>Không thể tải phiên người dùng</h2>
+        <button type="button" className="primary-button" onClick={retry}>Thử lại</button>
+      </section>
+    );
   if (!data)
     return (
       <section className="state-panel">

@@ -1,15 +1,9 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 
 import * as cartApi from "../api/cart";
+import { cartKeys } from "../api/queryKeys";
 import { useAuth } from "../auth/AuthContext";
 import type { Cart } from "../types/catalog";
 
@@ -37,111 +31,67 @@ function cartErrorMessage(error: unknown) {
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { loading: authLoading, user } = useAuth();
-  const [cart, setCart] = useState<Cart>(emptyCart);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const requestVersion = useRef(0);
-  const activeUserId = useRef<number | null>(null);
+  const queryClient = useQueryClient();
+  const userId = user?.id;
+  // Tagged with the user so one account's mutation error is never shown to the next.
+  const [mutationError, setMutationError] = useState<{ userId: number | undefined; message: string } | null>(null);
 
-  const refresh = useCallback(async () => {
-    const userId = user?.id;
-    if (!userId) return;
-    try {
-      const response = await cartApi.getCart();
-      if (activeUserId.current === userId) {
-        setCart(response.data);
-        setError(null);
-      }
-    } catch (requestError) {
-      if (isAxiosError(requestError) && requestError.code === "ERR_CANCELED") return;
-      if (activeUserId.current === userId) setError(cartErrorMessage(requestError));
-      throw requestError;
-    }
-  }, [user]);
+  const cartQuery = useQuery({
+    queryKey: cartKeys.user(userId ?? 0),
+    queryFn: async ({ signal }) => (await cartApi.getCart(signal)).data,
+    enabled: !authLoading && userId !== undefined,
+    staleTime: 0,
+  });
 
-  useEffect(() => {
-    const version = ++requestVersion.current;
-    activeUserId.current = user?.id ?? null;
-    setCart(emptyCart);
-    setError(null);
-    if (authLoading || !user) {
-      setLoading(false);
-      return;
-    }
-    const controller = new AbortController();
-    setLoading(true);
-    void cartApi
-      .getCart(controller.signal)
-      .then((response) => {
-        if (requestVersion.current === version) setCart(response.data);
-      })
-      .catch((requestError: unknown) => {
-        if (isAxiosError(requestError) && requestError.code === "ERR_CANCELED") return;
-        if (requestVersion.current === version) setError(cartErrorMessage(requestError));
-      })
-      .finally(() => {
-        if (requestVersion.current === version) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [authLoading, user]);
+  // Every mutation refetches the cart afterwards (also on failure: a 409 means stock changed).
+  const mutation = useMutation({
+    mutationFn: (request: () => Promise<unknown>) => request(),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: cartKeys.all }),
+  });
 
-  const mutate = useCallback(async (request: () => Promise<{ data: Cart }>) => {
-    const userId = activeUserId.current;
-    try {
-      const response = await request();
-      if (activeUserId.current === userId) {
-        setCart(response.data);
-        setError(null);
-      }
-    } catch (requestError) {
-      const message = cartErrorMessage(requestError);
-      if (activeUserId.current === userId) setError(message);
-      throw new Error(message, { cause: requestError });
-    }
-  }, []);
+  const { mutateAsync } = mutation;
+  const { refetch } = cartQuery;
 
-  const addItem = useCallback(
-    (productId: number, quantity: number) => mutate(() => cartApi.addCartItem(productId, quantity)),
-    [mutate],
-  );
-  const updateItem = useCallback(
-    (productId: number, quantity: number) => mutate(() => cartApi.updateCartItem(productId, quantity)),
-    [mutate],
-  );
-  const removeItem = useCallback(
-    async (productId: number) => {
-      const userId = activeUserId.current;
+  const mutate = useCallback(
+    async (request: () => Promise<unknown>) => {
       try {
-        await cartApi.removeCartItem(productId);
-        await refresh();
+        await mutateAsync(request);
+        setMutationError(null);
       } catch (requestError) {
         const message = cartErrorMessage(requestError);
-        if (activeUserId.current === userId) setError(message);
+        setMutationError({ userId, message });
         throw new Error(message, { cause: requestError });
       }
     },
-    [refresh],
+    [mutateAsync, userId],
   );
-  const clear = useCallback(async () => {
-    const userId = activeUserId.current;
-    try {
-      await cartApi.clearCart();
-      if (activeUserId.current === userId) {
-        setCart(emptyCart);
-        setError(null);
-      }
-    } catch (requestError) {
-      const message = cartErrorMessage(requestError);
-      if (activeUserId.current === userId) setError(message);
-      throw new Error(message, { cause: requestError });
-    }
-  }, []);
 
-  return (
-    <CartContext.Provider value={{ cart, loading, error, refresh, addItem, updateItem, removeItem, clear }}>
-      {children}
-    </CartContext.Provider>
-  );
+  const refresh = useCallback(async () => {
+    try {
+      await refetch({ throwOnError: true });
+      setMutationError(null);
+    } catch (requestError) {
+      if (isAxiosError(requestError) && requestError.code === "ERR_CANCELED") return;
+      throw requestError;
+    }
+  }, [refetch]);
+
+  const addItem = useCallback((productId: number, quantity: number) => mutate(() => cartApi.addCartItem(productId, quantity)), [mutate]);
+  const updateItem = useCallback((productId: number, quantity: number) => mutate(() => cartApi.updateCartItem(productId, quantity)), [mutate]);
+  const removeItem = useCallback((productId: number) => mutate(() => cartApi.removeCartItem(productId)), [mutate]);
+  const clear = useCallback(() => mutate(() => cartApi.clearCart()), [mutate]);
+
+  const value: CartValue = {
+    cart: userId !== undefined ? (cartQuery.data ?? emptyCart) : emptyCart,
+    loading: userId !== undefined && cartQuery.isLoading,
+    error: (mutationError && mutationError.userId === userId ? mutationError.message : null) ?? (userId !== undefined && cartQuery.isError ? cartErrorMessage(cartQuery.error) : null),
+    refresh,
+    addItem,
+    updateItem,
+    removeItem,
+    clear,
+  };
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 
 export function useCart() {

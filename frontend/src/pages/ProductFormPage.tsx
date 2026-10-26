@@ -1,18 +1,12 @@
-import { useEffect, useState } from "react";
-import { isAxiosError } from "axios";
 import { ArrowLeft, ChevronRight, LoaderCircle } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
-import { getCategories } from "../api/categories";
-import {
-  createProduct,
-  getProduct,
-  updateProduct,
-  uploadProductImage,
-} from "../api/products";
 import { ProductForm } from "../components/products/ProductForm";
 import { useToast } from "../components/feedback/Toast";
-import type { Category, Product, ProductPayload } from "../types/catalog";
+import { useCategories } from "../hooks/useCategories";
+import { useProduct } from "../hooks/useProduct";
+import { useSaveProduct } from "../hooks/useProductMutations";
+import type { ProductPayload } from "../types/catalog";
 
 interface ProductFormPageProps {
   mode: "create" | "edit";
@@ -24,39 +18,13 @@ export function ProductFormPage({ mode }: ProductFormPageProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [product, setProduct] = useState<Product>();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    if (
-      mode === "edit" &&
-      (!Number.isInteger(productIdNumber) || productIdNumber <= 0)
-    ) {
-      setError(true);
-      setLoading(false);
-      return;
-    }
-    const controller = new AbortController();
-    const productRequest =
-      mode === "edit"
-        ? getProduct(productIdNumber, controller.signal)
-        : Promise.resolve(null);
-    void Promise.all([getCategories(controller.signal), productRequest])
-      .then(([categoriesResponse, productResponse]) => {
-        setCategories(categoriesResponse.data);
-        if (productResponse) setProduct(productResponse.data);
-      })
-      .catch((requestError: unknown) => {
-        if (
-          !(isAxiosError(requestError) && requestError.code === "ERR_CANCELED")
-        )
-          setError(true);
-      })
-      .finally(() => setLoading(false));
-    return () => controller.abort();
-  }, [mode, productIdNumber]);
+  const isEdit = mode === "edit";
+  const productQuery = useProduct(isEdit ? productIdNumber : 0, { freshForEdit: true });
+  const categoriesQuery = useCategories();
+  const saveMutation = useSaveProduct(isEdit ? productIdNumber : undefined);
+  const product = isEdit ? productQuery.product : undefined;
+  const loading = categoriesQuery.loading || (isEdit && productQuery.loading);
+  const error = categoriesQuery.error || (isEdit && productQuery.error);
 
   const backToList = () => navigate(`/admin/products${location.search}`);
   const saveProduct = async (
@@ -64,15 +32,11 @@ export function ProductFormPage({ mode }: ProductFormPageProps) {
     file: File | null,
     signal: AbortSignal,
   ) => {
-    const response =
-      mode === "create"
-        ? await createProduct(payload, signal)
-        : await updateProduct(productIdNumber, payload, signal);
-    if (file) await uploadProductImage(response.data.id, file, signal);
+    const saved = await saveMutation.mutateAsync({ payload, file, signal });
     showToast(
       mode === "create" ? "Đã thêm sản phẩm mới." : "Đã cập nhật sản phẩm.",
     );
-    navigate(`/admin/products/${response.data.id}${location.search}`, {
+    navigate(`/admin/products/${saved.id}${location.search}`, {
       replace: true,
     });
   };
@@ -120,7 +84,7 @@ export function ProductFormPage({ mode }: ProductFormPageProps) {
         </div>
       </header>
       <ProductForm
-        categories={categories}
+        categories={categoriesQuery.categories}
         initialProduct={product}
         onCancel={backToList}
         onSubmit={saveProduct}

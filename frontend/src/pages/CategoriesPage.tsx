@@ -1,38 +1,21 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { isAxiosError } from "axios";
 import { ChevronRight, Pencil, Plus, Search, Tags, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { deleteCategory, getCategories } from "../api/categories";
 import { ConfirmDialog } from "../components/feedback/ConfirmDialog";
 import { useToast } from "../components/feedback/Toast";
+import { useCategories } from "../hooks/useCategories";
+import { useDeleteCategory } from "../hooks/useCategoryMutations";
 import type { Category } from "../types/catalog";
 import { formatDate } from "../utils/format";
 
 export function CategoriesPage() {
   const { showToast } = useToast();
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { categories, loading, error, retry } = useCategories();
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
   const [target, setTarget] = useState<Category>();
-  const [deleting, setDeleting] = useState(false);
-
-  const load = useCallback(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    setError(false);
-    void getCategories(controller.signal)
-      .then((response) => setCategories(response.data))
-      .catch((requestError: unknown) => {
-        if (!(isAxiosError(requestError) && requestError.code === "ERR_CANCELED"))
-          setError(true);
-      })
-      .finally(() => setLoading(false));
-    return () => controller.abort();
-  }, []);
-
-  useEffect(() => load(), [load]);
+  const deleteMutation = useDeleteCategory();
 
   const filteredCategories = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("vi");
@@ -43,10 +26,8 @@ export function CategoriesPage() {
 
   const remove = async () => {
     if (!target) return;
-    setDeleting(true);
     try {
-      await deleteCategory(target.id);
-      setCategories((current) => current.filter((category) => category.id !== target.id));
+      await deleteMutation.mutateAsync(target.id);
       setTarget(undefined);
       showToast("Đã xóa danh mục.");
     } catch (requestError) {
@@ -58,8 +39,6 @@ export function CategoriesPage() {
         "error",
       );
       setTarget(undefined);
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -100,7 +79,7 @@ export function CategoriesPage() {
         <section className="state-panel">
           <h2>Không thể tải danh mục</h2>
           <p>Kiểm tra kết nối rồi thử lại.</p>
-          <button type="button" className="primary-button" onClick={load}>Thử lại</button>
+          <button type="button" className="primary-button" onClick={retry}>Thử lại</button>
         </section>
       ) : !filteredCategories.length ? (
         <section className="state-panel">
@@ -133,7 +112,7 @@ export function CategoriesPage() {
       )}
       {target && (
         <ConfirmDialog
-          busy={deleting}
+          busy={deleteMutation.isPending}
           confirmLabel="Xóa danh mục"
           title="Xóa danh mục này?"
           description={`“${target.name}” sẽ bị xóa nếu chưa có sản phẩm sử dụng.`}

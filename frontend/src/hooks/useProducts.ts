@@ -1,38 +1,20 @@
-import { useEffect, useState } from "react";
-import { isAxiosError } from "axios";
+import { useQuery } from "@tanstack/react-query";
 
 import { getProducts } from "../api/products";
-import type { ProductListResponse, ProductQuery } from "../types/catalog";
+import { productKeys } from "../api/queryKeys";
+import type { ProductQuery } from "../types/catalog";
 
-interface ProductsState {
-  data: ProductListResponse | null;
-  error: boolean;
-  loading: boolean;
-}
-
+// No placeholderData: when filters or page change, the new key has no data yet,
+// so `loading` is true instead of showing the previous result as if it were new.
 export function useProducts(query: ProductQuery) {
-  const [state, setState] = useState<ProductsState>({
-    data: null,
-    error: false,
-    loading: true,
+  const result = useQuery({
+    queryKey: productKeys.list(query),
+    queryFn: async ({ signal }) => (await getProducts(query, signal)).data,
   });
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setState((current) => ({ ...current, loading: true, error: false }));
-
-    void getProducts(query, controller.signal)
-      .then((response) =>
-        setState({ data: response.data, error: false, loading: false }),
-      )
-      .catch((error: unknown) => {
-        if (isAxiosError(error) && error.code === "ERR_CANCELED") return;
-        setState((current) => ({ ...current, error: true, loading: false }));
-      });
-
-    return () => controller.abort();
-  }, [query, reloadKey]);
-
-  return { ...state, retry: () => setReloadKey((key) => key + 1) };
+  return {
+    data: result.data,
+    loading: result.isPending || (result.isError && result.isFetching),
+    error: result.isError && !result.isFetching,
+    retry: () => void result.refetch(),
+  };
 }
