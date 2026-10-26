@@ -1,4 +1,4 @@
-import type { ProductQuery } from "../types/catalog";
+import type { ProductCursorFilters, ProductQuery } from "../types/catalog";
 
 // Only fields that change the server response belong in the key. Picking them
 // explicitly keeps keys stable if callers pass extra properties.
@@ -15,10 +15,23 @@ function listFilters(query: ProductQuery): ProductQuery {
   };
 }
 
+function cursorFilters(filters: ProductCursorFilters): ProductCursorFilters {
+  return {
+    limit: filters.limit,
+    search: filters.search,
+    category_id: filters.category_id,
+    min_price: filters.min_price,
+    max_price: filters.max_price,
+  };
+}
+
 export const productKeys = {
   all: ["products"] as const,
   lists: () => [...productKeys.all, "list"] as const,
   list: (query: ProductQuery) => [...productKeys.lists(), listFilters(query)] as const,
+  // Under lists(), so invalidating lists() also refreshes cursor lists. The cursor itself is a
+  // page parameter of the infinite query, not part of the key.
+  cursorList: (filters: ProductCursorFilters) => [...productKeys.lists(), "cursor", cursorFilters(filters)] as const,
   details: () => [...productKeys.all, "detail"] as const,
   detail: (productId: number) => [...productKeys.details(), productId] as const,
 };

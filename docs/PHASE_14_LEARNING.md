@@ -97,8 +97,10 @@ lại từ server (`isFetchedAfterMount`), tránh sửa trên bản cache cũ.
 
 ## 6. Search, filter và phân trang
 
-Frontend vẫn dùng **offset pagination** (`page`, `total_pages`); API cursor của
-Phase 13 chưa được UI dùng nên không chuyển sang. URL query string vẫn là nguồn
+Phase 14 giữ **offset pagination** (`page`, `total_pages`) cho mọi màn hình. Sau đó
+trang `/shop` được bổ sung chế độ cursor “Tải thêm” cho thứ tự mặc định (mới nhất)
+bằng `useInfiniteQuery`, còn các thứ tự khác và trang admin vẫn dùng offset; xem
+`PHASE_13_LEARNING.md` mục 12. URL query string vẫn là nguồn
 sự thật, `useDebounce` giữ nguyên. Mỗi tổ hợp bộ lọc có key riêng.
 
 Không dùng `placeholderData`: khi đổi bộ lọc hoặc trang, key mới chưa có dữ liệu
@@ -172,7 +174,7 @@ giỏ hàng, và UI các trang Products/Detail/Form/Sessions/Admin.
 
 - Chưa chuyển sang Query: form đăng nhập (chỉ phần sau login nhờ reset cache) và
   `/auth/me` ban đầu trong `AuthProvider`.
-- UI chưa dùng cursor pagination của Phase 13.
+- Cursor pagination chỉ dùng ở `/shop` với thứ tự mặc định; admin và trang chủ vẫn dùng offset.
 - Form tạo sản phẩm giữ id sau lần tạo đầu tiên (trong vòng đời của trang form);
   nếu người dùng rời trang rồi quay lại khi upload ảnh đã lỗi, sản phẩm đã tạo
   vẫn nằm trong danh sách và cần sửa ở đó.

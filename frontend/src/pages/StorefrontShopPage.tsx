@@ -8,7 +8,9 @@ import { StoreProductCard } from "../components/storefront/StoreProductCard";
 import { useCategories } from "../hooks/useCategories";
 import { useDebounce } from "../hooks/useDebounce";
 import { useProducts } from "../hooks/useProducts";
+import { useProductsCursor } from "../hooks/useProductsCursor";
 import type {
+  ProductCursorFilters,
   ProductQuery,
   SortBy,
   SortOrder,
@@ -58,7 +60,24 @@ export function StorefrontShopPage() {
   const debouncedSearch = useDebounce(search);
   const searchWasCleared = useRef(false);
   const { categories } = useCategories();
-  const { data, error, loading, retry } = useProducts(query);
+  // Newest-first (the default) is what the cursor API serves, so it gets "load more". Any other
+  // sort needs the offset API, which keeps its page numbers and totals.
+  const cursorMode = query.sort_by === "created_at" && query.order === "desc";
+  const cursorFilters = useMemo<ProductCursorFilters>(
+    () => ({
+      limit: query.page_size,
+      search: query.search,
+      category_id: query.category_id,
+      min_price: query.min_price,
+      max_price: query.max_price,
+    }),
+    [query.page_size, query.search, query.category_id, query.min_price, query.max_price],
+  );
+  const offsetList = useProducts(query, { enabled: !cursorMode });
+  const cursorList = useProductsCursor(cursorFilters, { enabled: cursorMode });
+  const data = offsetList.data;
+  const items = cursorMode ? cursorList.items : (data?.items ?? []);
+  const { error, loading, retry } = cursorMode ? cursorList : offsetList;
   const categoryNames = new Map(
     categories.map((category) => [category.id, category.name]),
   );
@@ -131,10 +150,14 @@ export function StorefrontShopPage() {
         <>
           <div className="store-results-meta">
             <p>
-              {loading ? "Đang tải sản phẩm" : `${data?.total ?? 0} sản phẩm`}
+              {loading
+                ? "Đang tải sản phẩm"
+                : cursorMode
+                  ? `Đang hiển thị ${items.length} sản phẩm`
+                  : `${data?.total ?? 0} sản phẩm`}
             </p>
           </div>
-          {!loading && !data?.items.length ? (
+          {!loading && !items.length ? (
             <div className="store-state">
               <h2>Chưa tìm thấy sản phẩm</h2>
               <p>Hãy thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm.</p>
@@ -147,7 +170,7 @@ export function StorefrontShopPage() {
               {loading ? (
                 <StorefrontSkeleton />
               ) : (
-                data?.items.map((product) => (
+                items.map((product) => (
                   <StoreProductCard
                     key={product.id}
                     product={product}
@@ -157,7 +180,21 @@ export function StorefrontShopPage() {
               )}
             </div>
           )}
-          {data && data.total_pages > 1 && (
+          {cursorMode && !loading && items.length > 0 && (
+            <nav className="store-pagination" aria-label="Tải thêm sản phẩm">
+              {cursorList.loadMoreError && (
+                <span role="alert">Không thể tải thêm sản phẩm.</span>
+              )}
+              {cursorList.hasMore ? (
+                <button type="button" disabled={cursorList.loadingMore} onClick={cursorList.loadMore}>
+                  {cursorList.loadingMore ? "Đang tải..." : cursorList.loadMoreError ? "Thử lại" : "Tải thêm sản phẩm"}
+                </button>
+              ) : (
+                <span>Đã hiển thị tất cả sản phẩm</span>
+              )}
+            </nav>
+          )}
+          {!cursorMode && data && data.total_pages > 1 && (
             <nav className="store-pagination" aria-label="Phân trang">
               <button
                 type="button"

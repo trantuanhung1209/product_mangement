@@ -44,6 +44,21 @@ export interface ProductQuery {
   order: SortOrder;
 }
 
+// The cursor API only orders by newest first, has no total, and only moves forward.
+export interface ProductCursorFilters {
+  limit: number;
+  search?: string;
+  category_id?: number;
+  min_price?: string;
+  max_price?: string;
+}
+
+export interface ProductCursorResponse {
+  items: Product[];
+  next_cursor: string | null;
+  has_more: boolean;
+}
+
 export interface ProductPayload {
   name: string;
   description: string | null;

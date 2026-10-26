@@ -123,9 +123,9 @@ Cursor pagination là API contract: client xin một đoạn dữ liệu rồi d
 cuối danh sách. Một UI có thể dùng cursor với nút “Tải thêm”, hoặc dùng offset
 với phân trang số trang; hai khái niệm không bắt buộc đi cùng nhau.
 
-Phase này không đổi Shop sang infinite scroll. Frontend vẫn dùng response offset
-hiện có (`total`, `page`, `total_pages`), còn endpoint cursor là khả năng API
-riêng để so sánh và dùng ở một UI phù hợp sau này.
+Ở Phase 13 frontend chưa đổi gì: Shop vẫn dùng response offset (`total`, `page`,
+`total_pages`) và endpoint cursor chỉ là khả năng API riêng. Phần tích hợp vào giao
+diện được làm sau đó, xem mục 12.
 
 ## 10. Khi nào chọn offset, khi nào chọn cursor?
 
@@ -164,3 +164,42 @@ pytest tests/test_product_cursor.py -q
 
 Sau đó chạy `pytest` đầy đủ để xác nhận việc trích `product_filters()` không làm
 thay đổi pagination offset cũ.
+
+## 12. Dùng cursor trong giao diện (bổ sung sau Phase 15)
+
+Mục tiêu là **thêm** cursor mà không làm mất tính năng đã có. Vì cursor chỉ có
+một thứ tự (mới nhất trước), không có tổng số và chỉ đi tiếp, giao diện dùng
+chế độ lai ở trang storefront `/shop`:
+
+| Điều kiện | API | Giao diện |
+| --- | --- | --- |
+| Sắp xếp mặc định (`created_at` giảm dần) | `GET /products/cursor` | nút “Tải thêm sản phẩm”, đếm số đã hiển thị |
+| Chọn sắp xếp khác (tên, giá, tồn kho, cũ nhất) | `GET /products` (offset) | số trang, tổng số, “Trang trước/sau” như cũ |
+
+Admin (`/admin/products`) và trang chủ **không đổi**: admin cần tổng số, nhảy
+trang, chọn số dòng và các kiểu sắp xếp mà cursor không có.
+
+Cách hoạt động:
+
+- `useProductsCursor` (`frontend/src/hooks/`) dùng `useInfiniteQuery`. Cursor là
+  `pageParam` chứ không nằm trong query key; key chỉ chứa bộ lọc
+  (`productKeys.cursorList`), đặt dưới `productKeys.lists()` nên mọi mutation làm
+  cũ danh sách cũng làm cũ danh sách cursor.
+- Đổi bất kỳ bộ lọc nào (từ khóa, danh mục, khoảng giá) đổi key, nên danh sách bắt
+  đầu lại từ trang đầu. Điều này cũng cần thiết vì server gắn chữ ký cursor với
+  bộ lọc (mục 6): dùng cursor với bộ lọc khác bị trả 400.
+- Khi có thay đổi dữ liệu (tạo, sửa, xóa sản phẩm), TanStack Query tải lại từng
+  trang đã nạp bằng đúng cursor của trang đó. Nhờ keyset (mục 7), sản phẩm bị xóa
+  không làm lệch hay lặp các trang còn lại.
+- Lỗi khi tải trang đầu thay cả danh sách bằng thông báo lỗi và nút thử lại. Lỗi
+  khi “Tải thêm” giữ nguyên các sản phẩm đã hiển thị, báo lỗi ngay dưới danh sách
+  và nút “Thử lại” xin lại **cùng cursor**.
+- Nút bị khóa khi đang tải để không gửi trùng yêu cầu.
+- Endpoint cursor không đi qua cache Redis như endpoint offset; mỗi lần “Tải thêm”
+  là một truy vấn keyset trực tiếp. Giới hạn rate limit tìm kiếm công khai vẫn áp
+  dụng khi có `search`.
+
+Kiểm tra: `frontend/src/hooks/useProductsCursor.test.tsx`,
+`frontend/src/pages/StorefrontShopPage.test.tsx` và test key trong
+`frontend/src/api/queryKeys.test.ts`. Backend giữ nguyên các test cursor của
+Phase 13 và `test_cursor_tamper.py` (Phase 15).
