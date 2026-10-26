@@ -34,6 +34,7 @@ LOGIN_REQUIRED = [
     ("GET", "/api/v1/auth/me"),
     ("POST", "/api/v1/auth/logout"),
     ("POST", "/api/v1/auth/revoke-access"),
+    ("POST", "/api/v1/auth/password/change"),
     ("GET", "/api/v1/auth/sessions"),
     ("DELETE", "/api/v1/auth/sessions/others"),
     ("DELETE", "/api/v1/auth/sessions/{session_id}"),
@@ -50,6 +51,9 @@ PUBLIC = [
     ("POST", "/api/v1/auth/register/request-otp"),
     ("POST", "/api/v1/auth/register/resend-otp"),
     ("POST", "/api/v1/auth/register/verify-otp"),
+    # Password recovery runs before any session exists: Origin-checked and rate limited.
+    ("POST", "/api/v1/auth/password/forgot"),
+    ("POST", "/api/v1/auth/password/reset"),
     ("POST", "/api/v1/auth/refresh"),  # authenticated by the refresh cookie, not the access cookie
     ("GET", "/api/v1/categories"),
     ("GET", "/api/v1/products"),

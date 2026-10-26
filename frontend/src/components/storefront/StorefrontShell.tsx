@@ -75,6 +75,7 @@ export function StorefrontShell({ children }: StorefrontShellProps) {
               <strong>{user.email}</strong>
               <small>{user.role === "ADMIN" ? "Quản trị viên" : "Người dùng"}</small>
               <Link to="/account/sessions">Quản lý phiên đăng nhập</Link>
+              <Link to="/account/password">Đổi mật khẩu</Link>
               <button type="button" onClick={() => void handleLogout()} disabled={loggingOut}>
                 <LogOut size={15} aria-hidden="true" />
                 {loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}

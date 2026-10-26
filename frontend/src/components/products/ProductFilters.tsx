@@ -70,7 +70,7 @@ export function ProductFilters({ categories, categoryId, maxPrice, minPrice, sea
     <section className="filters" aria-label="Tìm kiếm và bộ lọc">
       <label className="search-field">
         <Search size={18} aria-hidden="true" />
-        <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Tìm kiếm sản phẩm" aria-label="Tìm kiếm sản phẩm" />
+        <input style={{ outline: "none" }} value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Tìm kiếm sản phẩm" aria-label="Tìm kiếm sản phẩm" />
         {search && <button type="button" className="icon-button" onClick={() => { onSearchChange(""); onChange({ search: undefined }); }} aria-label="Xóa tìm kiếm"><X size={16} aria-hidden="true" /></button>}
       </label>
       <div className="filter-controls">

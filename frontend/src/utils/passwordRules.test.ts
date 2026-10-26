@@ -1,20 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import cases from "./passwordCases.json";
 import { passwordProblems } from "./passwordRules";
 
-// The same table is asserted by backend/tests/test_registration.py; keep the two in step.
-const CASES: [string, number][] = [
-  ["Abcdef1!", 0],
-  ["Mật-khẩu-Tốt-1", 0],
-  ["Mật khẩu 1A", 0],
-  ["Đẹp-1xyz", 0], // a non-ASCII capital counts as upper case
-  ["P@ssw0rd" + "x".repeat(120), 0],
-  ["Sh0rt!", 1],
-  ["lowercase1!", 1],
-  ["NoDigitsHere!", 1],
-  ["NoSpecial123", 1],
-  ["", 4],
-];
+// passwordCases.json is also read by backend/tests/test_password_rules.py: one table, two implementations.
+const CASES = (cases as { password: string; problems: number }[]).map((c) => [c.password, c.problems] as const);
 
 describe("passwordProblems", () => {
   it.each(CASES)("%j has %i problem(s)", (password, count) => {

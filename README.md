@@ -43,7 +43,7 @@ Tạo admin: `docker compose --env-file .env.docker exec backend python -m scrip
 
 `/register` tạo tài khoản USER sau khi xác minh email bằng mã 6 số gửi qua Resend. Cần
 `OTP_HMAC_KEY` (secret thứ tư), `RESEND_API_KEY` và domain đã verified; ở dev để trống key và đặt
-`APP_ENV=development` thì OTP in ra terminal backend. Chi tiết: `docs/PHASE_17_REGISTRATION.md`.
+`APP_ENV=development` thì backend vẫn chạy nhưng không gửi thư (và không hiển thị mã). Quên mật khẩu (`/forgot-password`) và đổi mật khẩu (`/account/password`) dùng cùng cơ chế OTP/phiên. Chi tiết: `docs/PHASE_17_REGISTRATION.md`, `docs/PHASE_18_PASSWORD.md`.
 
 ## Yêu cầu
 

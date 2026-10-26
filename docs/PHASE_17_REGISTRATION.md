@@ -63,9 +63,9 @@ từ chối `Origin` lạ (`require_allowed_origin`, cùng danh sách với CORS
 Đồng hồ đếm ngược ở frontend lấy `expires_in_seconds` và `resend_in_seconds` từ phản hồi của
 `request-otp`/`resend-otp`, nên đổi hai biến `OTP_*` không cần sửa frontend.
 
-**Thiếu `RESEND_API_KEY`:** backend vẫn khởi động và ghi cảnh báo. `APP_ENV=development` dùng
-`ConsoleEmailSender`: in OTP ra stdout của terminal (cố ý không qua `logging`). Mọi môi trường khác
-trả 503 cho đăng ký, không bao giờ in OTP. Docker đặt `APP_ENV=production`.
+**Thiếu `RESEND_API_KEY`:** backend vẫn khởi động và ghi cảnh báo. Với `APP_ENV=development`,
+`ConsoleEmailSender` chỉ ghi một dòng log "chưa gửi vì thiếu key" và **không hiển thị mã** ở bất kỳ đâu
+(đổi ở Phase 18). Mọi môi trường khác trả 503 cho đăng ký. Docker đặt `APP_ENV=production`.
 
 ## 6. Xác minh domain `uside.id.vn` trên Resend (việc thủ công)
 

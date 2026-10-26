@@ -21,6 +21,9 @@ interface AuthValue {
   logout: () => Promise<void>;
   // Adopt a user the server has just signed in (e.g. after registration verified their email).
   adoptSignedInUser: (user: AuthUser) => void;
+  // The server has already ended every session (password changed): forget the user and the cache
+  // without another API call.
+  clearSession: () => void;
 }
 const AuthContext = createContext<AuthValue | null>(null);
 
@@ -100,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     endClientSession();
   };
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, adoptSignedInUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, adoptSignedInUser, clearSession: endClientSession }}>
       {children}
     </AuthContext.Provider>
   );

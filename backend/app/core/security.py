@@ -193,6 +193,15 @@ def revoke_other_user_sessions(redis: Redis | None, user_id: int, current_sessio
     return revoked
 
 
+def revoke_all_user_sessions(redis: Redis | None, user_id: int) -> int:
+    """Ends every session of the user. Access tokens die with their session (sid is checked per request)."""
+    revoked = 0
+    for session in list_user_sessions(redis, user_id):
+        if revoke_user_session(redis, user_id, str(session["session_id"])):
+            revoked += 1
+    return revoked
+
+
 def _get_session(redis: Redis | None, session_id: str) -> dict[str, object]:
     if redis is None:
         raise _unavailable()
