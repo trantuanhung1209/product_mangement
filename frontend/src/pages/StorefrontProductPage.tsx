@@ -10,6 +10,7 @@ import { useToast } from "../components/feedback/Toast";
 import { useCategories } from "../hooks/useCategories";
 import { useProduct } from "../hooks/useProduct";
 import { formatPrice } from "../utils/format";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function StorefrontProductPage() {
   const { productId } = useParams();
@@ -22,11 +23,23 @@ export function StorefrontProductPage() {
   const location = useLocation();
   const productIdNumber = Number(productId);
 
-  const { product, error } = useProduct(productIdNumber);
+  const { product, error, notFound, retry } = useProduct(productIdNumber);
+  useDocumentTitle(product?.name ?? "Sản phẩm");
   const { categories } = useCategories();
 
   useEffect(() => setQuantity(1), [productIdNumber]);
 
+  if (error && !notFound)
+    return (
+      <section className="storefront-container store-state">
+        <h1>Không thể tải sản phẩm</h1>
+        <p>Kiểm tra kết nối rồi thử lại.</p>
+        <button type="button" onClick={retry}>
+          Thử lại
+        </button>
+        <Link to="/shop">Về catalog</Link>
+      </section>
+    );
   if (error)
     return (
       <section className="storefront-container store-state">

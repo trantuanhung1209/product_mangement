@@ -16,6 +16,7 @@ import type {
   SortBy,
   SortOrder,
 } from "../types/catalog";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 const sortByValues: SortBy[] = ["id", "name", "price", "stock", "created_at"];
 const orderValues: SortOrder[] = ["asc", "desc"];
@@ -55,6 +56,7 @@ function queryFromParams(params: URLSearchParams): ProductQuery {
 }
 
 export function StorefrontShopPage() {
+  useDocumentTitle("Sản phẩm");
   const [params, setParams] = useSearchParams();
   const query = useMemo(() => queryFromParams(params), [params]);
   const { categories } = useCategories();

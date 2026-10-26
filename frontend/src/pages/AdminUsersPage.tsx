@@ -2,8 +2,10 @@ import { useState } from "react";
 import { ChevronRight, Search, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAdminUsers } from "../hooks/useAdminUsers";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function AdminUsersPage() {
+  useDocumentTitle("Quản lý người dùng");
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const { data, error, retry } = useAdminUsers({ page: 1, page_size: 20, search: appliedSearch || undefined });
@@ -26,6 +28,7 @@ export function AdminUsersPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Tìm theo email"
+            aria-label="Tìm theo email"
           />
         </label>
         <button className="secondary-button" onClick={applySearch}>
@@ -40,6 +43,12 @@ export function AdminUsersPage() {
       ) : !data ? (
         <section className="state-panel">
           <p>Đang tải người dùng...</p>
+        </section>
+      ) : !data.items.length ? (
+        <section className="state-panel">
+          <Users size={28} aria-hidden="true" />
+          <h2>{appliedSearch ? "Không tìm thấy người dùng" : "Chưa có người dùng nào"}</h2>
+          <p>{appliedSearch ? "Hãy thử một email khác." : "Người dùng sẽ xuất hiện ở đây khi được tạo."}</p>
         </section>
       ) : (
         <div className="table-wrap">

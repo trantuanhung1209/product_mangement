@@ -8,6 +8,7 @@ import { useToast } from "../components/feedback/Toast";
 import { useCategories } from "../hooks/useCategories";
 import { useSaveCategory } from "../hooks/useCategoryMutations";
 import type { CategoryPayload } from "../types/catalog";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 interface CategoryFormPageProps {
   mode: "create" | "edit";
@@ -24,6 +25,7 @@ function categoryError(error: unknown): string {
 }
 
 export function CategoryFormPage({ mode }: CategoryFormPageProps) {
+  useDocumentTitle(mode === "create" ? "Thêm danh mục" : "Sửa danh mục");
   const { categoryId } = useParams();
   const categoryIdNumber = Number(categoryId);
   const navigate = useNavigate();

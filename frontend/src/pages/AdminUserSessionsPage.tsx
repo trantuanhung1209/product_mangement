@@ -6,11 +6,13 @@ import { useToast } from "../components/feedback/Toast";
 import { useAdminUserSessions, useRevokeAdminSessions } from "../hooks/useAdminUsers";
 import type { LoginSession } from "../types/catalog";
 import { formatDate } from "../utils/format";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function AdminUserSessionsPage() {
   const { userId = "" } = useParams();
   const { showToast } = useToast();
   const { data, error, retry } = useAdminUserSessions(userId);
+  useDocumentTitle(data ? `Phiên của ${data.user.email}` : "Phiên người dùng");
   const revokeMutation = useRevokeAdminSessions(userId);
   const [target, setTarget] = useState<LoginSession | "all" | null>(null);
   const busy = revokeMutation.isPending;
@@ -59,6 +61,12 @@ export function AdminUserSessionsPage() {
           </button>
         </div>
       </header>
+      {!data.sessions.length && (
+        <section className="state-panel">
+          <h2>Không có phiên đang hoạt động</h2>
+          <p>Người dùng này hiện không đăng nhập ở thiết bị nào.</p>
+        </section>
+      )}
       <section className="session-list">
         {data.sessions.map((session) => (
           <article className="session-card" key={session.session_id}>

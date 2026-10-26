@@ -4,8 +4,10 @@ import { ArrowRight, LockKeyhole } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function LoginPage() {
+  useDocumentTitle("Đăng nhập");
   const { login, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();

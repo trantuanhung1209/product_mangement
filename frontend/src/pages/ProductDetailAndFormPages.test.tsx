@@ -64,6 +64,19 @@ describe("ProductDetailPage", () => {
     expect(getProduct).toHaveBeenCalledTimes(1);
   });
 
+  it("a temporary failure offers a retry instead of claiming the product is gone", async () => {
+    vi.mocked(getProduct)
+      .mockRejectedValue(new AxiosError("down", "ERR_BAD_RESPONSE", undefined, undefined, { status: 503 } as AxiosResponse));
+    renderRoutes("/admin/products/1");
+    expect(await screen.findByText("Không thể tải sản phẩm")).toBeInTheDocument();
+    expect(screen.queryByText("Không tìm thấy sản phẩm")).not.toBeInTheDocument();
+
+    vi.mocked(getProduct).mockReset();
+    vi.mocked(getProduct).mockResolvedValue(ok(makeProduct(1, { name: "Back online" })));
+    await userEvent.click(screen.getByRole("button", { name: "Thử lại" }));
+    expect(await screen.findByRole("heading", { name: "Back online" })).toBeInTheDocument();
+  });
+
   it("rejects a non-numeric id without any request", async () => {
     renderRoutes("/admin/products/abc");
     expect(await screen.findByText("Không tìm thấy sản phẩm")).toBeInTheDocument();
@@ -160,5 +173,34 @@ describe("ProductFormPage", () => {
     expect(updateProduct).toHaveBeenCalledWith(9, expect.objectContaining({ name: "Brand new" }), expect.any(AbortSignal));
     expect(uploadProductImage).toHaveBeenCalledTimes(2);
     expect(uploadProductImage).toHaveBeenLastCalledWith(9, expect.any(File), expect.any(AbortSignal));
+  });
+
+  it("edit: a missing product says so without offering a retry", async () => {
+    vi.mocked(getProduct).mockRejectedValue(notFound());
+    renderRoutes("/admin/products/404/edit");
+    expect(await screen.findByText("Không tìm thấy sản phẩm")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Thử lại" })).not.toBeInTheDocument();
+  });
+
+  it("edit: a temporary failure offers a retry that loads the form", async () => {
+    vi.mocked(getProduct).mockRejectedValue(new AxiosError("down", "ERR_BAD_RESPONSE", undefined, undefined, { status: 503 } as AxiosResponse));
+    renderRoutes("/admin/products/1/edit");
+    expect(await screen.findByText("Không thể tải dữ liệu sản phẩm")).toBeInTheDocument();
+    expect(screen.queryByText("Không tìm thấy sản phẩm")).not.toBeInTheDocument();
+
+    vi.mocked(getProduct).mockReset();
+    vi.mocked(getProduct).mockResolvedValue(ok(makeProduct(1, { name: "Loaded after retry" })));
+    await userEvent.click(screen.getByRole("button", { name: "Thử lại" }));
+    expect(await screen.findByLabelText(/Tên sản phẩm/)).toHaveValue("Loaded after retry");
+  });
+
+  it("create: a categories failure offers a retry that loads the form", async () => {
+    vi.mocked(getCategories).mockReset();
+    vi.mocked(getCategories).mockRejectedValueOnce(notFound()).mockResolvedValue(ok([makeCategory(1, "Phones")]));
+    renderRoutes("/admin/products/new");
+    expect(await screen.findByText("Không thể tải dữ liệu sản phẩm")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Thử lại" }));
+    expect(await screen.findByRole("option", { name: "Phones" })).toBeInTheDocument();
   });
 });

@@ -138,6 +138,17 @@ describe("AdminUsersPage", () => {
     expect(client.getQueryCache().findAll({ queryKey: adminKeys.users() })).toHaveLength(2);
   });
 
+  it("tells the admin when there are no users, and when a search finds none", async () => {
+    vi.mocked(authApi.getAdminUsers).mockResolvedValue(ok({ items: [], total: 0, page: 1, page_size: 20, total_pages: 0 }));
+    renderAt("/admin/users");
+    expect(await screen.findByText("Chưa có người dùng nào")).toBeInTheDocument();
+
+    expect(screen.getByRole("textbox", { name: "Tìm theo email" })).toBeInTheDocument();
+    await userEvent.type(screen.getByPlaceholderText("Tìm theo email"), "nobody");
+    await userEvent.click(screen.getByRole("button", { name: "Tìm kiếm" }));
+    expect(await screen.findByText("Không tìm thấy người dùng")).toBeInTheDocument();
+  });
+
   it("shows an error with retry instead of loading forever", async () => {
     vi.mocked(authApi.getAdminUsers).mockRejectedValueOnce(failure()).mockResolvedValue(ok({ items: [adminUser(3, "ok@example.com")], total: 1, page: 1, page_size: 20, total_pages: 1 }));
     renderAt("/admin/users");
@@ -175,6 +186,13 @@ describe("AdminUserSessionsPage", () => {
 
     expect(await screen.findByText("Đã thu hồi 2 phiên.")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText("agent-x")).not.toBeInTheDocument());
+  });
+
+  it("says so when the user has no active sessions", async () => {
+    vi.mocked(authApi.getAdminUserSessions).mockResolvedValue(detail([]));
+    renderAt("/admin/users/5/sessions");
+    expect(await screen.findByText("Không có phiên đang hoạt động")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Thu hồi tất cả" })).toBeDisabled();
   });
 
   it("a failed revoke shows an error and does not refetch; load errors offer retry", async () => {

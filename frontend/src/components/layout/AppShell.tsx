@@ -21,6 +21,7 @@ export function AppShell({ children }: AppShellProps) {
   const homePath = user?.role === "ADMIN" ? "/admin/products" : "/shop";
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Bỏ qua điều hướng</a>
       <aside className="sidebar">
         <NavLink
           className="brand"
@@ -77,7 +78,7 @@ export function AppShell({ children }: AppShellProps) {
           )}
         </div>
       </aside>
-      <main className="page-content">{children}</main>
+      <main id="main-content" className="page-content">{children}</main>
     </div>
   );
 }

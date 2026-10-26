@@ -19,6 +19,7 @@ import type {
   SortBy,
   SortOrder,
 } from "../types/catalog";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 const sortByValues: SortBy[] = ["id", "name", "price", "stock", "created_at"];
 const orderValues: SortOrder[] = ["asc", "desc"];
@@ -70,6 +71,7 @@ function parseQuery(searchParams: URLSearchParams): ProductQuery {
 }
 
 export function ProductsPage() {
+  useDocumentTitle("Quản lý sản phẩm");
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const { showToast } = useToast();
