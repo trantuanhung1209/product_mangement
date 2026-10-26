@@ -81,7 +81,7 @@ Product list, detail và các trang cursor có cache Redis, fallback PostgreSQL 
 - Mutation yêu cầu CSRF header. Frontend tự refresh một lần khi nhận 401.
 - Auth là fail-closed: Redis không truy cập được thì trả 503.
 
-**Đăng ký:** `/register` → OTP 6 số qua Resend (Redis, TTL 300s, tối đa 5 lần sai, cooldown 60s) → tạo user USER và tự đăng nhập. Xem `docs/PHASE_17_REGISTRATION.md`.
+**Đăng ký:** `/register` → OTP 6 số qua Resend (Redis, TTL 300s, tối đa 5 lần sai, cooldown 60s) → tạo user USER và tự đăng nhập. Quên mật khẩu bằng OTP và đổi mật khẩu thu hồi toàn bộ phiên. Xem `docs/PHASE_17_REGISTRATION.md`, `docs/PHASE_18_PASSWORD.md`.
 
 **Rate limit:** Redis, fixed window. Login, refresh, logout, mutation admin, upload ảnh và public search có giới hạn riêng; vượt giới hạn trả 429 kèm `Retry-After`. Identity được HMAC bằng `RATE_LIMIT_KEY_SECRET` trước khi thành key Redis.
 
