@@ -1,6 +1,20 @@
 # Product Catalog
 
-Monorepo học FastAPI + React cho Product Catalog. Hiện tại có REST API, truy vấn sản phẩm, Redis cache và giao diện danh sách sản phẩm.
+Ứng dụng web quản lý danh mục sản phẩm (bài thực tập `docs/ThucHanh-Tuan2.md`): REST API
+FastAPI, giao diện React, cache Redis, Docker. Có storefront cho khách (xem sản phẩm, giỏ hàng,
+đăng ký/đăng nhập) và trang quản trị cho ADMIN (sản phẩm, danh mục, ảnh, người dùng, phiên).
+
+**Chạy nhanh bằng Docker** (chi tiết ở "Hai chế độ chạy"):
+
+```bash
+cp .env.docker.example .env.docker     # điền secret bằng openssl rand -hex 32
+docker compose --env-file .env.docker up --build -d
+# mở http://localhost:8080  ·  Swagger UI: http://localhost:8080/docs  (chế độ dev: http://localhost:8000/docs)
+```
+
+> Đề bài viết "chỉ cần `docker compose up --build`". Dự án giữ thêm bước tạo `.env.docker` có chủ ý:
+> secret (JWT, HMAC, mật khẩu database) không được nằm trong git, và backend từ chối khởi động nếu
+> thiếu hoặc dùng giá trị mẫu.
 
 ## Cấu trúc
 
@@ -10,6 +24,151 @@ product-catalog/
 ├── frontend/      # React + Vite + TypeScript
 ├── docs/          # Tài liệu học và báo cáo phase
 └── .env.example   # Biến môi trường dùng chung
+```
+
+## Mức độ đáp ứng đề bài
+
+| Yêu cầu (`docs/ThucHanh-Tuan2.md`) | Trạng thái |
+| --- | --- |
+| Models `Category`, `Product` + Alembic | Có (migration trong `backend/migrations`) |
+| REST `/api/v1` cho products (GET list/detail, POST, PUT, PATCH, DELETE) và categories | Có (bảng API bên dưới) |
+| Phân trang `page`, `page_size` (mặc định 10, tối đa 100), `items/total/page/page_size/total_pages` | Có |
+| `search`, `category_id`, `min_price`, `max_price`, `sort_by`, `order` kết hợp phân trang | Có |
+| Cache Redis cho list và detail, TTL 60s, invalidate khi ghi, header `X-Cache: HIT/MISS` | Có |
+| Pydantic validate, mã trạng thái chuẩn, `.env`, CORS, Swagger `/docs` | Có |
+| Script seed ≥ 100 sản phẩm | Có (`python -m scripts.seed`: 100 sản phẩm) |
+| Frontend: tìm kiếm debounce 500ms, lọc, sắp xếp, phân trang, loading/empty/error | Có |
+| Chi tiết, form thêm/sửa có validate, modal xác nhận xóa, toast, filter/page trên URL | Có |
+| `useProducts`, `useDebounce`, tách `api/`, URL API qua biến môi trường | Có |
+| Dockerfile backend, frontend multi-stage + Nginx, compose (backend, frontend, postgres, redis + minio), volume, healthcheck, `depends_on` | Có (thêm `.env.docker`, xem ghi chú ở đầu) |
+| `.env.example`, `.dockerignore` | Có |
+| Nâng cao: JWT + RBAC, upload ảnh, pytest, rate limit, cursor pagination, React Query | Có cả sáu |
+| ERD, danh sách API, README | Có (bên dưới); ảnh chụp màn hình: xem mục "Ảnh chụp màn hình" |
+
+Khác biệt cấu trúc: các router API nằm ở `backend/app/api/v1/endpoints/` (thay vì `routers/`);
+`app/routers/` chỉ chứa `/health`. Các thư mục `models/`, `schemas/`, `services/`, `core/` đúng như đề bài.
+
+## Sơ đồ ERD
+
+```mermaid
+erDiagram
+    users ||--o| carts : "có một"
+    carts ||--o{ cart_items : "gồm"
+    products ||--o{ cart_items : "được thêm vào"
+    categories ||--o{ products : "chứa"
+
+    users {
+        int id PK
+        string email UK
+        string password_hash
+        enum role "ADMIN | USER"
+        bool is_active
+        datetime created_at
+    }
+    categories {
+        int id PK
+        string name UK
+        text description
+        datetime created_at
+    }
+    products {
+        int id PK
+        string name
+        text description
+        numeric price
+        int stock
+        int category_id FK
+        string image_url
+        string image_object_key
+        int image_width
+        int image_height
+        datetime created_at
+        datetime updated_at
+    }
+    carts {
+        int id PK
+        int user_id FK
+        datetime created_at
+        datetime updated_at
+    }
+    cart_items {
+        int id PK
+        int cart_id FK
+        int product_id FK
+        int quantity
+        datetime created_at
+        datetime updated_at
+    }
+    image_cleanup_tasks {
+        int id PK
+        string object_key UK
+        datetime created_at
+    }
+```
+
+`cart_items` có ràng buộc duy nhất `(cart_id, product_id)`. `products.category_id` dùng
+`ON DELETE RESTRICT` (không xóa được danh mục còn sản phẩm). `image_cleanup_tasks` là bảng việc
+dọn ảnh MinIO, không có khóa ngoại. Phiên đăng nhập, OTP và rate limit nằm trong Redis, không phải
+PostgreSQL.
+
+## Danh sách API
+
+Bảng sinh từ OpenAPI thật của backend (`/docs` có chi tiết tham số và schema). "Công khai" nghĩa là
+không cần đăng nhập; các POST/PUT/PATCH/DELETE yêu cầu đăng nhập còn cần header `X-CSRF-Token`.
+
+| Method | Đường dẫn | Quyền |
+| --- | --- | --- |
+| GET | `/health` | Công khai |
+| GET | `/api/v1/admin/users` | ADMIN |
+| GET | `/api/v1/admin/users/{user_id}/sessions` | ADMIN |
+| DELETE | `/api/v1/admin/users/{user_id}/sessions` | ADMIN |
+| DELETE | `/api/v1/admin/users/{user_id}/sessions/{session_id}` | ADMIN |
+| POST | `/api/v1/auth/login` | Công khai |
+| POST | `/api/v1/auth/logout` | Đăng nhập |
+| GET | `/api/v1/auth/me` | Đăng nhập |
+| POST | `/api/v1/auth/password/change` | Đăng nhập |
+| POST | `/api/v1/auth/password/forgot` | Công khai |
+| POST | `/api/v1/auth/password/reset` | Công khai |
+| POST | `/api/v1/auth/refresh` | Công khai |
+| POST | `/api/v1/auth/register/request-otp` | Công khai |
+| POST | `/api/v1/auth/register/resend-otp` | Công khai |
+| POST | `/api/v1/auth/register/verify-otp` | Công khai |
+| POST | `/api/v1/auth/revoke-access` | Đăng nhập |
+| GET | `/api/v1/auth/sessions` | Đăng nhập |
+| DELETE | `/api/v1/auth/sessions/others` | Đăng nhập |
+| DELETE | `/api/v1/auth/sessions/{session_id}` | Đăng nhập |
+| GET | `/api/v1/cart` | Đăng nhập |
+| DELETE | `/api/v1/cart` | Đăng nhập |
+| POST | `/api/v1/cart/items` | Đăng nhập |
+| PATCH | `/api/v1/cart/items/{product_id}` | Đăng nhập |
+| DELETE | `/api/v1/cart/items/{product_id}` | Đăng nhập |
+| GET | `/api/v1/categories` | Công khai |
+| POST | `/api/v1/categories` | ADMIN |
+| PUT | `/api/v1/categories/{category_id}` | ADMIN |
+| DELETE | `/api/v1/categories/{category_id}` | ADMIN |
+| GET | `/api/v1/products` | Công khai |
+| POST | `/api/v1/products` | ADMIN |
+| GET | `/api/v1/products/cursor` | Công khai |
+| GET | `/api/v1/products/{product_id}` | Công khai |
+| PUT | `/api/v1/products/{product_id}` | ADMIN |
+| PATCH | `/api/v1/products/{product_id}` | ADMIN |
+| DELETE | `/api/v1/products/{product_id}` | ADMIN |
+| GET | `/api/v1/products/{product_id}/image` | Công khai |
+| POST | `/api/v1/products/{product_id}/image` | ADMIN |
+| DELETE | `/api/v1/products/{product_id}/image` | ADMIN |
+
+Tham số danh sách sản phẩm (`GET /api/v1/products`): `page` (mặc định 1), `page_size` (mặc định 10,
+tối đa 100), `search`, `category_id`, `min_price`, `max_price`, `sort_by` (mặc định `created_at`),
+`order` (`asc`/`desc`). Response: `items`, `total`, `page`, `page_size`, `total_pages`, kèm header
+`X-Cache: HIT` hoặc `MISS`.
+
+## Ảnh chụp màn hình
+
+Chưa có ảnh trong repo (người viết không chụp được trình duyệt). Đặt ảnh vào `docs/screenshots/`
+theo danh sách trong [`docs/screenshots/README.md`](docs/screenshots/README.md) rồi thay mục này bằng:
+
+```markdown
+![Danh sách sản phẩm](docs/screenshots/shop-list.png)
 ```
 
 ## Hai chế độ chạy
@@ -27,17 +186,69 @@ Hai chế độ không dùng chung dữ liệu và không xung đột cổng (st
 
 ### Full Docker
 
+**1. Tạo `.env.docker` (một lần).**
+
 ```bash
-cp .env.docker.example .env.docker      # thay mọi <...> bằng secret sinh bằng openssl rand -hex
+cp .env.docker.example .env.docker
+```
+
+Mở `.env.docker` và thay mọi chỗ `<...>`:
+
+- Mật khẩu: `openssl rand -hex 24`. `POSTGRES_PASSWORD` phải giống mật khẩu trong `DATABASE_URL`;
+  `MINIO_ROOT_PASSWORD` phải giống `MINIO_SECRET_KEY`.
+- Bốn secret ứng dụng: `openssl rand -hex 32`. Phải khác nhau và dài ít nhất 32 ký tự
+  (`JWT_SECRET_KEY`, `PRODUCT_CURSOR_HMAC_KEY`, `RATE_LIMIT_KEY_SECRET`, `OTP_HMAC_KEY`).
+  Backend từ chối khởi động nếu sai; log chỉ nêu tên biến, không in giá trị.
+- Máy Intel hoặc Linux: bỏ dấu `#` ở `MINIO_IMAGE` và đổi thành `-amd64` (Apple Silicon dùng mặc định).
+- `.env.docker` đã nằm trong `.gitignore`, đừng commit.
+
+**2. Khởi động.**
+
+```bash
 docker compose --env-file .env.docker up --build -d
-docker compose --env-file .env.docker ps          # đợi tất cả healthy
+docker compose --env-file .env.docker ps          # đợi cả 5 service "healthy"
 curl http://localhost:8080/health
 ```
 
-Backend tự chạy `alembic upgrade head` và tạo bucket MinIO trước khi nhận request.
-Tạo admin: `docker compose --env-file .env.docker exec backend python -m scripts.create_admin admin@example.com`
-(cần terminal tương tác để nhập mật khẩu; thêm `-it` nếu cần). Dừng: `docker compose --env-file .env.docker down`.
-**Không dùng `down -v`**: nó xóa volume PostgreSQL/MinIO của stack.
+Lần đầu build mất vài phút. Backend tự chạy `alembic upgrade head` và tạo bucket MinIO trước khi nhận
+request. Mở ứng dụng ở http://localhost:8080 và Swagger ở http://localhost:8080/docs. Chỉ cổng 8080 được mở
+ra máy bạn; database, Redis, MinIO và backend chỉ nằm trong mạng nội bộ của compose.
+
+**3. Dữ liệu mẫu và tài khoản admin** (chạy trong container bằng `exec`; chi tiết ở
+`docs/PHASE_16_DOCKER.md` mục 10b):
+
+```bash
+dc() { docker compose --env-file .env.docker "$@"; }
+dc exec backend python -m scripts.seed                                # 10 danh mục, 100 sản phẩm
+dc exec -it backend python -m scripts.create_admin admin@example.com  # -it để mật khẩu không bị hiện
+dc exec backend python -m scripts.cleanup_orphan_images --dry-run
+```
+
+Rồi đăng nhập tại http://localhost:8080/login (khu quản trị: `/admin/products`).
+`create_admin` không kiểm tra độ mạnh mật khẩu, nên hãy tự đặt mật khẩu mạnh.
+
+**4. Đăng ký và quên mật khẩu bằng OTP** cần `RESEND_API_KEY`. Để trống thì `/register` và
+`/forgot-password` báo "Không thể gửi email lúc này" (phần còn lại vẫn chạy). Điền key vào `.env.docker`
+rồi chạy `dc up -d` (không cần `--build`).
+
+**5. Vận hành hằng ngày.**
+
+```bash
+dc logs -f backend        # xem log (Ctrl+C để thoát)
+dc down                   # dừng, xóa container, GIỮ dữ liệu
+dc up -d                  # chạy lại, dữ liệu còn nguyên
+dc up --build -d          # sau khi sửa code, build lại image
+```
+
+**Không dùng `down -v`**: nó xóa volume PostgreSQL/MinIO của stack và mất toàn bộ dữ liệu.
+
+| Triệu chứng | Cách xử lý |
+| --- | --- |
+| `env file .env.docker not found` | Chưa tạo `.env.docker` (bước 1) |
+| Backend khởi động lại liên tục | `dc logs backend`; thường do secret ngắn, trùng nhau hoặc còn chữ `<...>` |
+| `up` treo ở "Waiting" | `dc ps` xem service chưa healthy, rồi `dc logs <service>` |
+| Cổng 8080 đã bị dùng | Thêm `WEB_PORT=8081` vào `.env.docker` và đổi `CORS_ORIGINS` thành `["http://localhost:8081"]` |
+| Sửa code nhưng không thấy đổi | Chạy `dc up --build -d` |
 
 ### Đăng ký bằng OTP
 
