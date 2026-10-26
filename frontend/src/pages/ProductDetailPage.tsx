@@ -16,6 +16,7 @@ import { useCategories } from "../hooks/useCategories";
 import { useProduct } from "../hooks/useProduct";
 import { useDeleteProduct } from "../hooks/useProductMutations";
 import { formatDate, formatNumber, formatPrice } from "../utils/format";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function ProductDetailPage() {
   const { productId } = useParams();
@@ -24,9 +25,10 @@ export function ProductDetailPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const deleteMutation = useDeleteProduct();
-  const { product, loading, error } = useProduct(productIdNumber, {
+  const { product, loading, error, notFound, retry } = useProduct(productIdNumber, {
     enabled: !deleteMutation.isPending && !deleteMutation.isSuccess,
   });
+  useDocumentTitle(product?.name ?? "Chi tiết sản phẩm");
   const { categories } = useCategories();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -49,6 +51,19 @@ export function ProductDetailPage() {
         <LoaderCircle className="spin" size={26} aria-hidden="true" />
         <h2>Đang tải sản phẩm</h2>
         <p>Vui lòng chờ trong giây lát.</p>
+      </section>
+    );
+  if (error && !notFound)
+    return (
+      <section className="state-panel">
+        <h2>Không thể tải sản phẩm</h2>
+        <p>Kiểm tra kết nối rồi thử lại.</p>
+        <button type="button" className="primary-button" onClick={retry}>
+          Thử lại
+        </button>
+        <button type="button" className="secondary-button" onClick={backToList}>
+          Về danh sách
+        </button>
       </section>
     );
   if (error || !product)

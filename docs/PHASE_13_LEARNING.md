@@ -187,7 +187,11 @@ Cách hoạt động:
   cũ danh sách cũng làm cũ danh sách cursor.
 - Đổi bất kỳ bộ lọc nào (từ khóa, danh mục, khoảng giá) đổi key, nên danh sách bắt
   đầu lại từ trang đầu. Điều này cũng cần thiết vì server gắn chữ ký cursor với
-  bộ lọc (mục 6): dùng cursor với bộ lọc khác bị trả 400.
+  bộ lọc (mục 6): dùng cursor với bộ lọc khác bị trả 400. Trong lúc trang đầu mới
+  đang tải, các sản phẩm của bộ lọc cũ vẫn hiện nhưng bị làm mờ và đánh dấu “Đang cập
+  nhật…”; hook trả `updating = true`, nút “Tải thêm” bị khóa, và cursor cũ không thể
+  được gửi kèm bộ lọc mới vì mỗi bộ lọc có query (và danh sách trang) riêng (xem
+  `UI_UX_POLISH.md`).
 - Khi có thay đổi dữ liệu (tạo, sửa, xóa sản phẩm), TanStack Query tải lại từng
   trang đã nạp bằng đúng cursor của trang đó. Nhờ keyset (mục 7), sản phẩm bị xóa
   không làm lệch hay lặp các trang còn lại.

@@ -48,8 +48,10 @@ export function ProductFilters({ categories, categoryId, maxPrice, minPrice, sea
     return false;
   }, [onChange]);
 
-  useEffect(() => { commitPrice("min_price", debouncedMinPrice, minPrice); }, [commitPrice, debouncedMinPrice, minPrice]);
-  useEffect(() => { commitPrice("max_price", debouncedMaxPrice, maxPrice); }, [commitPrice, debouncedMaxPrice, maxPrice]);
+  // Commit only once the debounced text has caught up with the input. A lagging value (just after
+  // "clear", or after the URL changed through history) must not be written back over that change.
+  useEffect(() => { if (debouncedMinPrice === minPriceInput) commitPrice("min_price", debouncedMinPrice, minPrice); }, [commitPrice, debouncedMinPrice, minPriceInput, minPrice]);
+  useEffect(() => { if (debouncedMaxPrice === maxPriceInput) commitPrice("max_price", debouncedMaxPrice, maxPrice); }, [commitPrice, debouncedMaxPrice, maxPriceInput, maxPrice]);
 
   const resetInvalidPrice = (key: "min_price" | "max_price", value: string, fallback: string | undefined) => {
     if (commitPrice(key, value, fallback)) return;
@@ -68,7 +70,7 @@ export function ProductFilters({ categories, categoryId, maxPrice, minPrice, sea
     <section className="filters" aria-label="Tìm kiếm và bộ lọc">
       <label className="search-field">
         <Search size={18} aria-hidden="true" />
-        <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Tìm kiếm sản phẩm" />
+        <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Tìm kiếm sản phẩm" aria-label="Tìm kiếm sản phẩm" />
         {search && <button type="button" className="icon-button" onClick={() => { onSearchChange(""); onChange({ search: undefined }); }} aria-label="Xóa tìm kiếm"><X size={16} aria-hidden="true" /></button>}
       </label>
       <div className="filter-controls">

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Leaf, LogIn, LogOut, ShoppingCart, UserRound } from "lucide-react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../auth/AuthContext";
 import { useCart } from "../../cart/CartContext";
@@ -17,6 +17,31 @@ export function StorefrontShell({ children }: StorefrontShellProps) {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
+  const menuRef = useRef<HTMLDetailsElement>(null);
+  const { pathname } = useLocation();
+  // The account menu is a <details>, which stays open until toggled again. Close it when the user
+  // picks a destination, clicks elsewhere or presses Escape.
+  useEffect(() => {
+    if (menuRef.current) menuRef.current.open = false;
+  }, [pathname]);
+  useEffect(() => {
+    const menu = menuRef.current;
+    if (!menu) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (menu.open && !menu.contains(event.target as Node)) menu.open = false;
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !menu.open) return;
+      menu.open = false;
+      menu.querySelector("summary")?.focus();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [user]);
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
@@ -40,7 +65,7 @@ export function StorefrontShell({ children }: StorefrontShellProps) {
           {cart.total_quantity > 0 && <b aria-hidden="true">{cart.total_quantity}</b>}
         </Link>
         {user ? (
-          <details className="storefront-user-menu">
+          <details ref={menuRef} className="storefront-user-menu">
             <summary aria-label="Mở menu tài khoản">
               <UserRound size={17} aria-hidden="true" />
               <span>Tài khoản</span>

@@ -6,7 +6,8 @@ body { margin: 0; min-width: 320px; min-height: 100vh; background: #f8f9f7; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .45; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #b9dfc3; outline-offset: 2px; }
+/* #2e7d46 is 5:1 on white; the previous light greens were 1.5-2.8:1, below the 3:1 needed for focus indicators. */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 3px solid #2e7d46; outline-offset: 2px; }
 
 .app-shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100vh; }
 .sidebar { display: flex; flex-direction: column; gap: 42px; padding: 24px 16px; border-right: 1px solid #e5e7eb; background: #fff; }
@@ -34,7 +35,7 @@ h1, h2, p { margin-top: 0; }
 
 .filters { display: grid; grid-template-columns: minmax(220px, 1.25fr) minmax(0, 2.3fr) auto; gap: 14px; align-items: end; padding: 16px; border: 1px solid #e5e7eb; border-radius: 13px; background: #fff; box-shadow: 0 1px 2px rgba(31, 41, 55, .025); }
 .search-field { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 0 10px; border: 1px solid #dfe3e8; border-radius: 9px; color: #85909d; }
-.search-field:focus-within { border-color: #69a879; box-shadow: 0 0 0 3px #eaf4ec; }
+.search-field:focus-within { border-color: #2e7d46; box-shadow: 0 0 0 3px #cfe6d6; }
 .search-field input { min-width: 0; flex: 1; border: 0; outline: 0; color: #1f2937; }
 .search-field input::placeholder { color: #98a1ac; }
 .icon-button { display: grid; width: 28px; height: 28px; place-items: center; padding: 0; border: 0; border-radius: 6px; color: #687382; background: transparent; }
@@ -43,7 +44,7 @@ h1, h2, p { margin-top: 0; }
 .filter-controls label, .pagination label { display: grid; gap: 5px; color: #6b7280; font-size: 11px; font-weight: 600; }
 .filter-controls label > span { display: flex; align-items: center; gap: 5px; }
 .filter-controls select, .filter-controls input, .pagination select { width: 100%; min-height: 34px; padding: 0 9px; border: 1px solid #dfe3e8; border-radius: 7px; color: #354152; background: #fff; outline: none; transition: border-color 160ms ease, box-shadow 160ms ease; }
-.filter-controls select:focus, .filter-controls input:focus, .pagination select:focus { border-color: #69a879; box-shadow: 0 0 0 3px #eaf4ec; }
+.filter-controls select:focus, .filter-controls input:focus, .pagination select:focus { border-color: #2e7d46; box-shadow: 0 0 0 3px #cfe6d6; }
 .clear-filters { min-height: 34px; padding: 0 9px; border: 0; color: #4e7a59; background: transparent; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .clear-filters:hover { color: #166534; text-decoration: underline; }
 
@@ -103,7 +104,7 @@ h1, h2, p { margin-top: 0; }
 .form-field textarea { min-height: 120px; resize: vertical; line-height: 1.5; }
 .image-preview { width: 100%; max-width: 180px; aspect-ratio: 1 / 1; object-fit: cover; border: 1px solid #e5e7eb; border-radius: 9px; }
 .field-label { display: flex; gap: 6px; align-items: baseline; }.field-label em { color: #8b949f; font-size: 11px; font-style: normal; font-weight: 500; }.upload-control { position: relative; display: flex; align-items: center; min-height: 42px; overflow: hidden; border: 1px solid #dfe3e8; border-radius: 8px; background: #fff; }.upload-button { display: inline-flex; align-items: center; align-self: stretch; padding: 0 12px; color: #166534; background: #eaf4ec; font-size: 12px; font-weight: 700; }.upload-file-name { min-width: 0; overflow: hidden; padding: 0 12px; color: #687382; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }.file-input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
-.form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: #69a879; box-shadow: 0 0 0 3px #eaf4ec; }
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: #2e7d46; box-shadow: 0 0 0 3px #cfe6d6; }
 .form-field [aria-invalid="true"] { border-color: #c65a4d; }
 .field-error, .form-error { color: #a33629; font-size: 12px; font-weight: 600; line-height: 1.45; }
 .field-helper { color: #8b949f; font-size: 11px; font-weight: 500; }
@@ -160,7 +161,7 @@ h1, h2, p { margin-top: 0; }
 .login-card > p:not(.eyebrow):not(.form-error) { margin: 0 0 20px; color: #7a8592; font-size: 13px; }
 .login-card label { display: grid; gap: 7px; margin-top: 6px; color: #485464; font-size: 13px; font-weight: 700; }
 .login-card input { min-height: 46px; padding: 0 12px; border: 1px solid #dfe3e8; border-radius: 9px; outline: none; color: #26323e; background: #fff; }
-.login-card input:focus { border-color: #69a879; box-shadow: 0 0 0 3px #eaf4ec; }
+.login-card input:focus { border-color: #2e7d46; box-shadow: 0 0 0 3px #cfe6d6; }
 .login-submit { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; margin-top: 18px; }
 
 @keyframes shimmer { to { background-position: -200% 0; } }
@@ -170,4 +171,10 @@ h1, h2, p { margin-top: 0; }
 @media (max-width: 520px) { .filter-controls, .form-grid { grid-template-columns: 1fr; } .form-field-wide { grid-column: auto; } .product-form, .product-detail { padding: 18px; } .form-actions, .detail-actions, .dialog-actions { flex-direction: column-reverse; } .form-actions button, .detail-actions > *, .dialog-actions button { width: 100%; } }
 @media (max-width: 620px) { .session-card { grid-template-columns: auto minmax(0, 1fr); }.session-card button { grid-column: 1 / -1; width: 100%; }.admin-search { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .login-page { grid-template-columns: 1fr; } .login-intro { min-height: 260px; padding: 40px 24px; } .login-intro .brand-mark { margin-bottom: 10px; } .login-intro h1 { font-size: 34px; } .login-card { width: min(420px, calc(100% - 32px)); padding: 42px 0; } }
+/* A list that is being replaced stays visible but is marked as stale. */
+.is-updating { opacity: .55; transition: opacity 150ms ease; }
+.updating-status { margin: 6px 0 0; color: #5f6f64; font-size: 13px; }
+.updating-status:empty { margin: 0; }
+/* Leave room for the sticky storefront header when a list is scrolled into view. */
+.scroll-target { scroll-margin-top: 88px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }

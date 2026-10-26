@@ -39,8 +39,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {toast && (
         <div
           className={`toast toast-${toast.kind}`}
-          role="status"
-          aria-live="polite"
+          role={toast.kind === "error" ? "alert" : "status"}
+          aria-live={toast.kind === "error" ? "assertive" : "polite"}
         >
           {toast.kind === "success" ? (
             <CheckCircle2 size={18} aria-hidden="true" />

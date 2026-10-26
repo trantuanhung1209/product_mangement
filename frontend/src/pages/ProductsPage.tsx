@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ChevronRight, Plus } from "lucide-react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 
@@ -9,15 +9,17 @@ import { Pagination } from "../components/products/Pagination";
 import { ProductFilters } from "../components/products/ProductFilters";
 import { ProductTable } from "../components/products/ProductTable";
 import { useCategories } from "../hooks/useCategories";
-import { useDebounce } from "../hooks/useDebounce";
 import { useDeleteProduct } from "../hooks/useProductMutations";
 import { useProducts } from "../hooks/useProducts";
+import { useScrollToListOnPageChange } from "../hooks/useScrollToListOnPageChange";
+import { useSearchInput } from "../hooks/useSearchInput";
 import type {
   Product,
   ProductQuery,
   SortBy,
   SortOrder,
 } from "../types/catalog";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 const sortByValues: SortBy[] = ["id", "name", "price", "stock", "created_at"];
 const orderValues: SortOrder[] = ["asc", "desc"];
@@ -69,18 +71,18 @@ function parseQuery(searchParams: URLSearchParams): ProductQuery {
 }
 
 export function ProductsPage() {
+  useDocumentTitle("Quản lý sản phẩm");
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const { showToast } = useToast();
   const { user } = useAuth();
   const query = useMemo(() => parseQuery(searchParams), [searchParams]);
-  const [searchInput, setSearchInput] = useState(query.search ?? "");
-  const debouncedSearch = useDebounce(searchInput);
-  const searchWasCleared = useRef(false);
   const { categories } = useCategories();
   const [productToDelete, setProductToDelete] = useState<Product>();
   const deleteMutation = useDeleteProduct();
-  const { data, error, loading, retry } = useProducts(query);
+  const { data, error, loading, retry, updating } = useProducts(query);
+  const listRef = useRef<HTMLDivElement>(null);
+  useScrollToListOnPageChange(query.page, listRef);
 
   const updateParams = useCallback(
     (changes: Record<string, string | undefined>, resetPage = true) => {
@@ -96,24 +98,15 @@ export function ProductsPage() {
     [setSearchParams],
   );
 
-  useEffect(() => setSearchInput(query.search ?? ""), [query.search]);
-
-  useEffect(() => {
-    if (searchWasCleared.current && debouncedSearch !== "") return;
-    if (debouncedSearch === "") searchWasCleared.current = false;
-    if (debouncedSearch.trim() !== (query.search ?? ""))
-      updateParams({ search: debouncedSearch.trim() || undefined });
-  }, [debouncedSearch, query.search, updateParams]);
+  const commitSearch = useCallback((search: string | undefined) => updateParams({ search }), [updateParams]);
+  const [searchInput, setSearchInput] = useSearchInput(query.search, commitSearch);
 
   const handleChange = useCallback(
     (changes: Record<string, string | undefined>, resetPage = true) => {
-      if ("search" in changes && changes.search === undefined) {
-        searchWasCleared.current = true;
-        setSearchInput("");
-      }
+      if ("search" in changes && changes.search === undefined) setSearchInput("");
       updateParams(changes, resetPage);
     },
-    [updateParams],
+    [setSearchInput, updateParams],
   );
   const hasFilters = Boolean(
     query.search ||
@@ -168,23 +161,29 @@ export function ProductsPage() {
         onSearchChange={setSearchInput}
         onChange={handleChange}
       />
-      <ProductTable
-        categories={categories}
-        products={data?.items ?? []}
-        loading={loading}
-        error={error}
-        hasFilters={hasFilters}
-        onRetry={retry}
-        onRequestDelete={setProductToDelete}
-        search={location.search}
-        canManage={user?.role === "ADMIN"}
-      />
+      <p className="updating-status" role="status">
+        {updating ? "Đang cập nhật…" : ""}
+      </p>
+      <div ref={listRef} className={`scroll-target${updating ? " is-updating" : ""}`} aria-busy={updating}>
+        <ProductTable
+          categories={categories}
+          products={data?.items ?? []}
+          loading={loading || (updating && !data?.items.length)}
+          error={error}
+          hasFilters={hasFilters}
+          onRetry={retry}
+          onRequestDelete={setProductToDelete}
+          search={location.search}
+          canManage={user?.role === "ADMIN"}
+        />
+      </div>
       {!error && !loading && data && (
         <Pagination
           page={data.page}
           pageSize={data.page_size}
           total={data.total}
           totalPages={data.total_pages}
+          disabled={updating}
           onChange={handleChange}
         />
       )}

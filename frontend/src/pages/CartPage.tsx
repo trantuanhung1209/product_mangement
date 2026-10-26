@@ -9,8 +9,10 @@ import { QuantityControl } from "../components/storefront/QuantityControl";
 import { useToast } from "../components/feedback/Toast";
 import type { CartItem } from "../types/catalog";
 import { formatPrice } from "../utils/format";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function CartPage() {
+  useDocumentTitle("Giỏ hàng");
   const { user } = useAuth();
   const { cart, loading, error, refresh, clear } = useCart();
   const { showToast } = useToast();

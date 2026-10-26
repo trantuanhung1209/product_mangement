@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 
 import { getProduct } from "../api/products";
 import { productKeys } from "../api/queryKeys";
@@ -23,6 +24,9 @@ export function useProduct(productId: number, { freshForEdit = false, enabled = 
     product: result.data,
     loading: !invalidId && (result.isPending || (freshForEdit && !result.isFetchedAfterMount)),
     error: invalidId || result.isError,
+    // The product does not exist (or the id is malformed). Any other failure may be temporary,
+    // so screens offer a retry instead of telling the user the product is gone.
+    notFound: invalidId || (isAxiosError(result.error) && [404, 422].includes(result.error.response?.status ?? 0)),
     retry: () => void result.refetch(),
   };
 }

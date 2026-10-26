@@ -7,8 +7,10 @@ import { useToast } from "../components/feedback/Toast";
 import { useMySessions, useRevokeOtherSessions, useRevokeSession } from "../hooks/useSessions";
 import type { LoginSession } from "../types/catalog";
 import { formatDate } from "../utils/format";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function SessionsPage() {
+  useDocumentTitle("Phiên đăng nhập");
   const { logout, user } = useAuth();
   const { showToast } = useToast();
   const { sessions, loading, error, retry } = useMySessions(user?.id);

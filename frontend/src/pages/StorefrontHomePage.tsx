@@ -25,6 +25,7 @@ import { StoreProductCard } from "../components/storefront/StoreProductCard";
 import { useCategories } from "../hooks/useCategories";
 import { useProducts } from "../hooks/useProducts";
 import type { Product } from "../types/catalog";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 const featuredQuery = {
   page: 1,
@@ -55,6 +56,7 @@ const heroSlides = [
 const categoryIcons = [Laptop, House, PenLine, Smartphone, ShoppingBag, Shirt];
 
 export function StorefrontHomePage() {
+  useDocumentTitle("Trang chủ");
   const { categories } = useCategories();
   const query = useMemo(() => featuredQuery, []);
   const { data, error, loading, retry } = useProducts(query);
@@ -138,6 +140,10 @@ export function StorefrontHomePage() {
         ) : loading ? (
           <div className="store-product-grid" aria-busy="true">
             <StorefrontSkeleton />
+          </div>
+        ) : !products.length ? (
+          <div className="store-state">
+            <p>Chưa có sản phẩm nào trong catalog.</p>
           </div>
         ) : (
           <FeaturedProductCarousel

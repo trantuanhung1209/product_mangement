@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 
 import { queryClient } from "./api/queryClient";
 import { App } from "./App";
+import "lenis/dist/lenis.css";
 import "./styles.css";
 import "./storefront.css";
 

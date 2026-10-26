@@ -182,3 +182,57 @@ describe("StorefrontShopPage: other sort orders keep the offset API and page num
     await waitFor(() => expect(within(screen.getByRole("navigation", { name: "Tải thêm sản phẩm" })).getByText("Đã hiển thị tất cả sản phẩm")).toBeInTheDocument());
   });
 });
+
+describe("StorefrontShopPage: stale results while the next ones load", () => {
+  it("cursor mode: old items stay visible but dimmed, 'load more' is locked and never sends the old cursor", async () => {
+    let resolveNew: (value: ReturnType<typeof ok<ProductCursorResponse>>) => void = () => {};
+    vi.mocked(getProductsCursor).mockImplementation((params) =>
+      params.category_id === 2
+        ? new Promise((resolve) => { resolveNew = resolve as typeof resolveNew; })
+        : Promise.resolve(ok(cursorPage(["Phone A"], "cursor-1"))),
+    );
+    renderShop();
+    await screen.findByText("Phone A");
+    await screen.findByRole("option", { name: "Laptops" });
+
+    await userEvent.selectOptions(screen.getByLabelText("Danh mục"), "2");
+
+    const grid = screen.getByText("Phone A").closest(".store-product-grid");
+    expect(grid).toHaveClass("is-updating");
+    expect(grid).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("status")).toHaveTextContent("Đang cập nhật…");
+    const loadMore = screen.getByRole("button", { name: "Tải thêm sản phẩm" });
+    expect(loadMore).toBeDisabled();
+    await userEvent.click(loadMore);
+    expect(vi.mocked(getProductsCursor).mock.calls.some(([params]) => params.cursor === "cursor-1")).toBe(false);
+
+    resolveNew(ok(cursorPage(["Laptop X"], null, 10)));
+    expect(await screen.findByText("Laptop X")).toBeInTheDocument();
+    expect(screen.queryByText("Phone A")).not.toBeInTheDocument(); // the two result sets are never mixed
+    expect(screen.getByText("Laptop X").closest(".store-product-grid")).not.toHaveClass("is-updating");
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  });
+
+  it("offset mode: the current page stays dimmed and both page buttons are locked while the next page loads", async () => {
+    let resolvePage2: (value: ReturnType<typeof ok>) => void = () => {};
+    vi.mocked(getProducts).mockImplementation((query) =>
+      query.page === 2
+        ? new Promise((resolve) => { resolvePage2 = resolve as typeof resolvePage2; })
+        : Promise.resolve(ok(makeList([makeProduct(1, { name: "Page one" })], { total: 16, page: 1, page_size: 8, total_pages: 2 }))),
+    );
+    renderShop("/shop?sort_by=price&order=asc");
+    await screen.findByText("Page one");
+
+    await userEvent.click(screen.getByRole("button", { name: "Trang sau" }));
+
+    expect(screen.getByText("Page one")).toBeInTheDocument();
+    expect(screen.getByText("Page one").closest(".store-product-grid")).toHaveClass("is-updating");
+    expect(screen.getByRole("button", { name: "Trang sau" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Trang trước" })).toBeDisabled();
+    expect(getProducts).toHaveBeenCalledTimes(2); // a second click could not have queued page 3
+
+    resolvePage2(ok(makeList([makeProduct(9, { name: "Page two" })], { total: 16, page: 2, page_size: 8, total_pages: 2 })));
+    expect(await screen.findByText("Page two")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Trang trước" })).toBeEnabled();
+  });
+});

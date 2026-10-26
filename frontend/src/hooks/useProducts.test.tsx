@@ -29,7 +29,7 @@ describe("useProducts", () => {
     expect(result.current.error).toBe(false);
   });
 
-  it("never shows the previous filter's result while a new filter loads, and reuses cache when switching back", async () => {
+  it("keeps the previous result on screen, flagged as updating, while a new filter loads, then swaps it", async () => {
     const all = makeList([makeProduct(1), makeProduct(2)]);
     const filtered = makeList([makeProduct(3)]);
     let resolveFiltered: (value: ReturnType<typeof ok>) => void = () => {};
@@ -43,17 +43,38 @@ describe("useProducts", () => {
       wrapper: queryWrapper(createTestQueryClient()),
     });
     await waitFor(() => expect(result.current.data).toEqual(all));
+    expect(result.current.updating).toBe(false);
 
     rerender({ query: makeQuery({ category_id: 9 }) });
-    expect(result.current.loading).toBe(true);
-    expect(result.current.data).toBeUndefined();
+    expect(result.current.data).toEqual(all); // stale, but the page does not blank out
+    expect(result.current.updating).toBe(true); // callers must mark it as stale
+    expect(result.current.loading).toBe(false);
 
     resolveFiltered(ok(filtered));
     await waitFor(() => expect(result.current.data).toEqual(filtered));
+    expect(result.current.updating).toBe(false);
 
     rerender({ query: makeQuery() });
     expect(result.current.data).toEqual(all);
+    expect(result.current.updating).toBe(false); // served from cache
     expect(getProducts).toHaveBeenCalledTimes(2);
+  });
+
+  it("drops the stale result and reports the error when the new filter fails", async () => {
+    const all = makeList([makeProduct(1)]);
+    vi.mocked(getProducts).mockImplementation((query) =>
+      query.category_id === 9 ? Promise.reject(httpError(404)) : Promise.resolve(ok(all)),
+    );
+    const { result, rerender } = renderHook(({ query }) => useProducts(query), {
+      initialProps: { query: makeQuery() },
+      wrapper: queryWrapper(createTestQueryClient()),
+    });
+    await waitFor(() => expect(result.current.data).toEqual(all));
+
+    rerender({ query: makeQuery({ category_id: 9 }) });
+    await waitFor(() => expect(result.current.error).toBe(true));
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.updating).toBe(false);
   });
 
   it("retries transient failures a bounded number of times", async () => {

@@ -39,9 +39,12 @@ describe("useProductsCursor", () => {
     expect(getProductsCursor).toHaveBeenCalledTimes(2);
   });
 
-  it("restarts from the first page, with no stale items, when a filter changes", async () => {
-    vi.mocked(getProductsCursor).mockImplementation(async (params) =>
-      ok(params.category_id === 9 ? page([50], null) : page([3, 2], "c1")),
+  it("keeps the old items flagged as updating when a filter changes, never reuses the old cursor, then restarts from page one", async () => {
+    let resolveNew: (value: ReturnType<typeof ok>) => void = () => {};
+    vi.mocked(getProductsCursor).mockImplementation((params) =>
+      params.category_id === 9
+        ? new Promise((resolve) => { resolveNew = resolve as typeof resolveNew; })
+        : Promise.resolve(ok(page([3, 2], "c1"))),
     );
     const { result, rerender } = renderHook(({ current }) => useProductsCursor(current), {
       initialProps: { current: filters as { limit: number; category_id?: number } },
@@ -50,9 +53,19 @@ describe("useProductsCursor", () => {
     await waitFor(() => expect(result.current.items).toHaveLength(2));
 
     rerender({ current: { limit: 2, category_id: 9 } });
-    expect(result.current.items).toEqual([]);
-    expect(result.current.loading).toBe(true);
+    expect(result.current.items.map((item) => item.id)).toEqual([3, 2]);
+    expect(result.current.updating).toBe(true);
+    expect(result.current.loading).toBe(false);
+
+    // Even if something calls loadMore now, the old cursor ("c1") belongs to the old filter and
+    // must never be sent for the new one: the new key's query has no pages to continue from.
+    act(() => result.current.loadMore());
+    expect(vi.mocked(getProductsCursor).mock.calls.some(([params]) => params.cursor === "c1")).toBe(false);
+
+    resolveNew(ok(page([50], null)));
     await waitFor(() => expect(result.current.items.map((item) => item.id)).toEqual([50]));
+    expect(result.current.updating).toBe(false);
+    expect(result.current.hasMore).toBe(false);
     expect(getProductsCursor).toHaveBeenLastCalledWith({ limit: 2, category_id: 9, cursor: undefined }, expect.any(AbortSignal));
   });
 

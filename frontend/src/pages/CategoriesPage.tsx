@@ -9,8 +9,10 @@ import { useCategories } from "../hooks/useCategories";
 import { useDeleteCategory } from "../hooks/useCategoryMutations";
 import type { Category } from "../types/catalog";
 import { formatDate } from "../utils/format";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function CategoriesPage() {
+  useDocumentTitle("Danh mục");
   const { showToast } = useToast();
   const { categories, loading, error, retry } = useCategories();
   const [search, setSearch] = useState("");

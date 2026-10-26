@@ -73,26 +73,34 @@ describe("ProductsPage", () => {
     expect(screen.queryByText("Không thể tải danh sách sản phẩm")).not.toBeInTheDocument();
   });
 
-  it("changing the category filter fetches a separate result and never shows the old rows as the new result", async () => {
+  it("changing the category filter keeps the old rows dimmed and locked until the new result replaces them", async () => {
     let resolveFiltered: (value: ReturnType<typeof ok>) => void = () => {};
     vi.mocked(getProducts).mockImplementation((query) =>
       query.category_id === 2
         ? new Promise((resolve) => { resolveFiltered = resolve as typeof resolveFiltered; })
-        : Promise.resolve(ok(makeList([makeProduct(1, { name: "Phone A" })]))),
+        : Promise.resolve(ok(makeList([makeProduct(1, { name: "Phone A" })], { total: 30, total_pages: 3 }))),
     );
     renderPage();
     await screen.findByText("Phone A");
     await screen.findByRole("option", { name: "Laptops" });
+    expect(screen.getByRole("button", { name: "Trang sau" })).toBeEnabled();
 
     await userEvent.selectOptions(screen.getByLabelText("Danh mục"), "2");
 
-    expect(screen.queryByText("Phone A")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Đang tải sản phẩm")).toBeInTheDocument();
+    // Old rows stay (no blank page) but are marked stale, and paging from them is blocked.
+    expect(screen.getByText("Phone A")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Đang cập nhật…");
+    expect(screen.getByText("Phone A").closest("[aria-busy='true']")).toHaveClass("is-updating");
+    expect(screen.getByRole("button", { name: "Trang sau" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Trang trước" })).toBeDisabled();
+    expect(screen.queryByLabelText("Đang tải sản phẩm")).not.toBeInTheDocument();
     expect(getProducts).toHaveBeenLastCalledWith(expect.objectContaining({ category_id: 2, page: 1 }), expect.any(AbortSignal));
 
     resolveFiltered(ok(makeList([makeProduct(5, { name: "Laptop B", category_id: 2 })])));
     expect(await screen.findByText("Laptop B")).toBeInTheDocument();
     expect(screen.queryByText("Phone A")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(screen.getByText("Laptop B").closest("[aria-busy]")).toHaveAttribute("aria-busy", "false");
   });
 
   it("deleting a product refetches the list so the deleted row disappears", async () => {
