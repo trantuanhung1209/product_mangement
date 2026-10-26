@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { getProductsCursor } from "../api/products";
@@ -14,10 +14,14 @@ export function useProductsCursor(filters: ProductCursorFilters, { enabled = tru
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
     enabled,
+    placeholderData: keepPreviousData,
   });
   const items = useMemo(() => result.data?.pages.flatMap((page) => page.items) ?? [], [result.data]);
   return {
     items,
+    // True while the list still shows the previous filter's items. The screen must dim them and
+    // disable "load more": paging belongs to the new filter, which has not produced a page yet.
+    updating: enabled && result.isPlaceholderData,
     hasMore: result.hasNextPage,
     loading: enabled && (result.isPending || (result.isError && result.isFetching && !result.isFetchNextPageError)),
     loadingMore: result.isFetchingNextPage,

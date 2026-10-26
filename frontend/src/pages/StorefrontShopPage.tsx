@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -6,9 +6,10 @@ import shopIntroImage from "../assets/store-hero-02.webp";
 import { ProductFilters } from "../components/products/ProductFilters";
 import { StoreProductCard } from "../components/storefront/StoreProductCard";
 import { useCategories } from "../hooks/useCategories";
-import { useDebounce } from "../hooks/useDebounce";
 import { useProducts } from "../hooks/useProducts";
 import { useProductsCursor } from "../hooks/useProductsCursor";
+import { useScrollToListOnPageChange } from "../hooks/useScrollToListOnPageChange";
+import { useSearchInput } from "../hooks/useSearchInput";
 import type {
   ProductCursorFilters,
   ProductQuery,
@@ -56,9 +57,6 @@ function queryFromParams(params: URLSearchParams): ProductQuery {
 export function StorefrontShopPage() {
   const [params, setParams] = useSearchParams();
   const query = useMemo(() => queryFromParams(params), [params]);
-  const [search, setSearch] = useState(query.search ?? "");
-  const debouncedSearch = useDebounce(search);
-  const searchWasCleared = useRef(false);
   const { categories } = useCategories();
   // Newest-first (the default) is what the cursor API serves, so it gets "load more". Any other
   // sort needs the offset API, which keeps its page numbers and totals.
@@ -77,7 +75,11 @@ export function StorefrontShopPage() {
   const cursorList = useProductsCursor(cursorFilters, { enabled: cursorMode });
   const data = offsetList.data;
   const items = cursorMode ? cursorList.items : (data?.items ?? []);
-  const { error, loading, retry } = cursorMode ? cursorList : offsetList;
+  const { error, loading, retry, updating } = cursorMode ? cursorList : offsetList;
+  // Nothing to show yet: first load, or a filter change whose previous result was empty.
+  const waiting = loading || (updating && !items.length);
+  const gridRef = useRef<HTMLDivElement>(null);
+  useScrollToListOnPageChange(cursorMode ? 1 : query.page, gridRef);
   const categoryNames = new Map(
     categories.map((category) => [category.id, category.name]),
   );
@@ -96,18 +98,10 @@ export function StorefrontShopPage() {
     [setParams],
   );
 
-  useEffect(() => setSearch(query.search ?? ""), [query.search]);
-  useEffect(() => {
-    if (searchWasCleared.current && debouncedSearch !== "") return;
-    if (debouncedSearch === "") searchWasCleared.current = false;
-    if (debouncedSearch.trim() !== (query.search ?? ""))
-      update({ search: debouncedSearch.trim() || undefined });
-  }, [debouncedSearch, query.search, update]);
+  const commitSearch = useCallback((value: string | undefined) => update({ search: value }), [update]);
+  const [search, setSearch] = useSearchInput(query.search, commitSearch);
   const handleFiltersChange = (changes: Record<string, string | undefined>) => {
-    if ("search" in changes && changes.search === undefined) {
-      searchWasCleared.current = true;
-      setSearch("");
-    }
+    if ("search" in changes && changes.search === undefined) setSearch("");
     update(changes);
   };
 
@@ -156,8 +150,11 @@ export function StorefrontShopPage() {
                   ? `Đang hiển thị ${items.length} sản phẩm`
                   : `${data?.total ?? 0} sản phẩm`}
             </p>
+            <p className="updating-status" role="status">
+              {updating ? "Đang cập nhật…" : ""}
+            </p>
           </div>
-          {!loading && !items.length ? (
+          {!waiting && !items.length ? (
             <div className="store-state">
               <h2>Chưa tìm thấy sản phẩm</h2>
               <p>Hãy thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm.</p>
@@ -166,8 +163,8 @@ export function StorefrontShopPage() {
               </button>
             </div>
           ) : (
-            <div className="store-product-grid" aria-busy={loading}>
-              {loading ? (
+            <div ref={gridRef} className={`store-product-grid scroll-target${updating ? " is-updating" : ""}`} aria-busy={waiting || updating}>
+              {waiting ? (
                 <StorefrontSkeleton />
               ) : (
                 items.map((product) => (
@@ -180,13 +177,13 @@ export function StorefrontShopPage() {
               )}
             </div>
           )}
-          {cursorMode && !loading && items.length > 0 && (
+          {cursorMode && !waiting && items.length > 0 && (
             <nav className="store-pagination" aria-label="Tải thêm sản phẩm">
               {cursorList.loadMoreError && (
                 <span role="alert">Không thể tải thêm sản phẩm.</span>
               )}
-              {cursorList.hasMore ? (
-                <button type="button" disabled={cursorList.loadingMore} onClick={cursorList.loadMore}>
+              {cursorList.hasMore || updating ? (
+                <button type="button" disabled={cursorList.loadingMore || updating} onClick={cursorList.loadMore}>
                   {cursorList.loadingMore ? "Đang tải..." : cursorList.loadMoreError ? "Thử lại" : "Tải thêm sản phẩm"}
                 </button>
               ) : (
@@ -198,7 +195,7 @@ export function StorefrontShopPage() {
             <nav className="store-pagination" aria-label="Phân trang">
               <button
                 type="button"
-                disabled={data.page <= 1}
+                disabled={data.page <= 1 || updating}
                 onClick={() => update({ page: String(data.page - 1) })}
               >
                 Trang trước
@@ -208,7 +205,7 @@ export function StorefrontShopPage() {
               </span>
               <button
                 type="button"
-                disabled={data.page >= data.total_pages}
+                disabled={data.page >= data.total_pages || updating}
                 onClick={() => update({ page: String(data.page + 1) })}
               >
                 Trang sau

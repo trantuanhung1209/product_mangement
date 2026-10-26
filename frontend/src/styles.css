@@ -170,4 +170,10 @@ h1, h2, p { margin-top: 0; }
 @media (max-width: 520px) { .filter-controls, .form-grid { grid-template-columns: 1fr; } .form-field-wide { grid-column: auto; } .product-form, .product-detail { padding: 18px; } .form-actions, .detail-actions, .dialog-actions { flex-direction: column-reverse; } .form-actions button, .detail-actions > *, .dialog-actions button { width: 100%; } }
 @media (max-width: 620px) { .session-card { grid-template-columns: auto minmax(0, 1fr); }.session-card button { grid-column: 1 / -1; width: 100%; }.admin-search { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .login-page { grid-template-columns: 1fr; } .login-intro { min-height: 260px; padding: 40px 24px; } .login-intro .brand-mark { margin-bottom: 10px; } .login-intro h1 { font-size: 34px; } .login-card { width: min(420px, calc(100% - 32px)); padding: 42px 0; } }
+/* A list that is being replaced stays visible but is marked as stale. */
+.is-updating { opacity: .55; transition: opacity 150ms ease; }
+.updating-status { margin: 6px 0 0; color: #5f6f64; font-size: 13px; }
+.updating-status:empty { margin: 0; }
+/* Leave room for the sticky storefront header when a list is scrolled into view. */
+.scroll-target { scroll-margin-top: 88px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
