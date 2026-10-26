@@ -103,9 +103,16 @@ bằng `useInfiniteQuery`, còn các thứ tự khác và trang admin vẫn dùn
 `PHASE_13_LEARNING.md` mục 12. URL query string vẫn là nguồn
 sự thật, `useDebounce` giữ nguyên. Mỗi tổ hợp bộ lọc có key riêng.
 
-Không dùng `placeholderData`: khi đổi bộ lọc hoặc trang, key mới chưa có dữ liệu
-nên `loading = true` và UI hiện skeleton thay vì kết quả cũ trông như kết quả mới.
-Quay lại trang đã xem thì hiện ngay từ cache rồi tải nền nếu đã stale.
+Ở Phase 14 không dùng `placeholderData`: khi đổi bộ lọc hoặc trang, key mới chưa có
+dữ liệu nên `loading = true` và UI hiện skeleton thay vì kết quả cũ trông như kết
+quả mới. Quay lại trang đã xem thì hiện ngay từ cache rồi tải nền nếu đã stale.
+
+> **Đã thay đổi sau đó** (xem `UI_UX_POLISH.md`): danh sách giờ giữ dữ liệu cũ bằng
+> `keepPreviousData` để trang không bị trống mỗi lần đổi bộ lọc. Rủi ro Phase 14
+> nêu ra (nhầm kết quả cũ là kết quả mới) được xử lý ở giao diện: dữ liệu cũ được
+> trả kèm cờ `updating`, bị làm mờ, `aria-busy` và có dòng “Đang cập nhật…”, còn
+> phân trang và “Tải thêm” bị khóa trong lúc đó. Khi lần tải mới lỗi, dữ liệu cũ bị
+> bỏ và hiện trạng thái lỗi.
 
 ## 7. Tích hợp API client và authentication
 
