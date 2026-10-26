@@ -48,6 +48,14 @@ def get_settings() -> Settings:
     return Settings()
 
 
+MIN_DISTINCT_CHARACTERS = 8
+
+
+def _is_weak_secret(value: str) -> bool:
+    # A repeated block ("abab...", "0123456789" * 4) or very few distinct characters is never random.
+    return len(set(value)) < MIN_DISTINCT_CHARACTERS or value in (value + value)[1:-1]
+
+
 PLACEHOLDER_MARKERS = ("change_me", "changeme", "replace_me", "your_secret", "generate_a", "example")
 
 
@@ -60,6 +68,9 @@ def validate_security_configuration(settings: Settings) -> None:
     invalid = [name for name, value in required.items() if value is None or len(value) < 32]
     if invalid:
         raise RuntimeError(f"Security configuration is missing or too short: {', '.join(invalid)}")
+    weak = [name for name, value in required.items() if _is_weak_secret(value)]
+    if weak:
+        raise RuntimeError(f"Security configuration contains weak or repeating values: {', '.join(weak)}")
     placeholders = [name for name, value in required.items() if any(m in value.lower() for m in PLACEHOLDER_MARKERS)]
     if placeholders:
         raise RuntimeError(f"Security configuration contains placeholder values: {', '.join(placeholders)}")
