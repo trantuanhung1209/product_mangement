@@ -44,8 +44,9 @@ nhầm kết quả cũ là kết quả mới. Rủi ro đó nay được xử l�
 như trên thay vì giấu dữ liệu. Skeleton chỉ còn ở lần tải đầu tiên (hoặc khi kết quả
 cũ rỗng).
 
-**Debounce.** `useDebounce` mặc định giảm từ 500 ms xuống 300 ms (ô tìm kiếm và ô
-giá).
+**Debounce.** Đợt này từng giảm `useDebounce` từ 500 ms xuống 300 ms. Vì đề bài thực tập
+(`docs/ThucHanh-Tuan2.md`) yêu cầu 500 ms nên giá trị mặc định đã được đưa về **500 ms** (có test
+`useDebounce.test.ts`).
 
 ## 3. “Xóa bộ lọc” đúng nghĩa
 
