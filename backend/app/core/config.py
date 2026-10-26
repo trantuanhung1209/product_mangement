@@ -9,6 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 class Settings(BaseSettings):
     app_name: str = "product-catalog-api"
+    app_env: str = "production"
     cors_origins: list[str] = ["http://localhost:5173"]
     database_url: str | None = None
     database_pool_size: int = 5
@@ -35,6 +36,13 @@ class Settings(BaseSettings):
     rate_limit_public_search_per_minute: int = 60
     trusted_proxy_ips: list[str] = []
     security_hsts_enabled: bool = False
+    rate_limit_registration_per_minute: int = 5
+    resend_api_key: str | None = None
+    resend_from_email: str = "noreply@uside.id.vn"
+    otp_hmac_key: str | None = None
+    otp_ttl_seconds: int = 300
+    otp_max_attempts: int = 5
+    otp_resend_cooldown_seconds: int = 60
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
@@ -64,6 +72,7 @@ def validate_security_configuration(settings: Settings) -> None:
         "JWT_SECRET_KEY": settings.jwt_secret_key,
         "PRODUCT_CURSOR_HMAC_KEY": settings.product_cursor_hmac_key,
         "RATE_LIMIT_KEY_SECRET": settings.rate_limit_key_secret,
+        "OTP_HMAC_KEY": settings.otp_hmac_key,
     }
     invalid = [name for name, value in required.items() if value is None or len(value) < 32]
     if invalid:
@@ -75,4 +84,4 @@ def validate_security_configuration(settings: Settings) -> None:
     if placeholders:
         raise RuntimeError(f"Security configuration contains placeholder values: {', '.join(placeholders)}")
     if len(set(required.values())) != len(required):
-        raise RuntimeError("JWT_SECRET_KEY, PRODUCT_CURSOR_HMAC_KEY and RATE_LIMIT_KEY_SECRET must be distinct.")
+        raise RuntimeError("JWT_SECRET_KEY, PRODUCT_CURSOR_HMAC_KEY, RATE_LIMIT_KEY_SECRET and OTP_HMAC_KEY must be distinct.")
