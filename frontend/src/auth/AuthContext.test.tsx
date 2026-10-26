@@ -100,15 +100,21 @@ describe("AuthProvider and the query cache", () => {
     expect(screen.queryByText("account-a-data")).not.toBeInTheDocument();
   });
 
-  it("keeps the cache when logout fails (user is still signed in)", async () => {
-    vi.mocked(getProducts).mockResolvedValue(ok(makeList([makeProduct(1, { name: "still-here" })])));
+  it("logout still clears the client session and cache when the logout API fails", async () => {
+    vi.mocked(getProducts)
+      .mockResolvedValueOnce(ok(makeList([makeProduct(1, { name: "private-for-user-1" })])))
+      .mockResolvedValueOnce(ok(makeList([])));
     vi.mocked(authApi.logout).mockRejectedValue(new Error("network"));
     const client = setup();
-    await screen.findByText("still-here");
+    await screen.findByText("private-for-user-1");
+    const hidden = productKeys.detail(99);
+    client.setQueryData(hidden, makeProduct(99, { name: "secret" }));
 
     await userEvent.click(screen.getByText("logout"));
 
-    expect(screen.getByTestId("user")).toHaveTextContent("user1@example.com");
-    expect(client.getQueryData(productKeys.list(query))).toBeDefined();
+    await waitFor(() => expect(screen.getByTestId("user")).toHaveTextContent("anonymous"));
+    expect(authApi.logout).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("private-for-user-1")).not.toBeInTheDocument();
+    expect(client.getQueryData(hidden)).toBeUndefined();
   });
 });

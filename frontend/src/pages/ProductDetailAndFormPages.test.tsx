@@ -6,7 +6,7 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getCategories } from "../api/categories";
-import { createProduct, deleteProduct, getProduct, updateProduct } from "../api/products";
+import { createProduct, deleteProduct, getProduct, updateProduct, uploadProductImage } from "../api/products";
 import { productKeys } from "../api/queryKeys";
 import { ToastProvider } from "../components/feedback/Toast";
 import { createTestQueryClient, makeCategory, makeList, makeProduct, makeQuery, ok } from "../test/testUtils";
@@ -132,5 +132,33 @@ describe("ProductFormPage", () => {
     expect(screen.getByRole("button", { name: "Lưu thay đổi" })).toBeEnabled();
     expect(updateProduct).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("location")).toHaveTextContent("/admin/products/1/edit");
+  });
+
+  it("create + failed image upload + save again updates the created product instead of creating a duplicate", async () => {
+    vi.mocked(createProduct).mockResolvedValue(ok(makeProduct(9, { name: "Brand new" })));
+    vi.mocked(updateProduct).mockResolvedValue(ok(makeProduct(9, { name: "Brand new" })));
+    vi.mocked(uploadProductImage)
+      .mockRejectedValueOnce(new AxiosError("boom", "ERR_BAD_RESPONSE", undefined, undefined, { status: 500 } as AxiosResponse))
+      .mockResolvedValueOnce(ok(makeProduct(9, { image_url: "/img/9" })));
+    const client = renderRoutes("/admin/products/new");
+    await screen.findByRole("option", { name: "Phones" });
+    await userEvent.type(screen.getByLabelText(/Tên sản phẩm/), "Brand new");
+    await userEvent.type(screen.getByLabelText(/Giá bán/), "1500");
+    await userEvent.selectOptions(screen.getByLabelText(/Danh mục/), "1");
+    await userEvent.upload(document.querySelector<HTMLInputElement>('input[type="file"]')!, new File(["x"], "a.png", { type: "image/png" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Thêm sản phẩm" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Không thể lưu sản phẩm");
+    expect(createProduct).toHaveBeenCalledTimes(1);
+    expect(client.getQueryState(productKeys.list(makeQuery()))?.isInvalidated).toBe(true);
+
+    await userEvent.click(screen.getByRole("button", { name: "Thêm sản phẩm" }));
+
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/admin/products/9"));
+    expect(createProduct).toHaveBeenCalledTimes(1);
+    expect(updateProduct).toHaveBeenCalledTimes(1);
+    expect(updateProduct).toHaveBeenCalledWith(9, expect.objectContaining({ name: "Brand new" }), expect.any(AbortSignal));
+    expect(uploadProductImage).toHaveBeenCalledTimes(2);
+    expect(uploadProductImage).toHaveBeenLastCalledWith(9, expect.any(File), expect.any(AbortSignal));
   });
 });
