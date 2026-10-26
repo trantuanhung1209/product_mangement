@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 
 import { AppShell } from "./components/layout/AppShell";
+import { SmoothScroll } from "./components/layout/SmoothScroll";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { ProductFormPage } from "./pages/ProductFormPage";
@@ -73,6 +74,7 @@ export function App() {
     <AuthProvider>
       <CartProvider>
       <ToastProvider>
+        <SmoothScroll />
         <Routes>
           <Route
             path="/"
