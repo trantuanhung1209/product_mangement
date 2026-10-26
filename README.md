@@ -43,7 +43,7 @@ product-catalog/
 | Dockerfile backend, frontend multi-stage + Nginx, compose (backend, frontend, postgres, redis + minio), volume, healthcheck, `depends_on` | Có (thêm `.env.docker`, xem ghi chú ở đầu) |
 | `.env.example`, `.dockerignore` | Có |
 | Nâng cao: JWT + RBAC, upload ảnh, pytest, rate limit, cursor pagination, React Query | Có cả sáu |
-| ERD, danh sách API, README | Có (bên dưới); ảnh chụp màn hình: xem mục "Ảnh chụp màn hình" |
+| ERD, danh sách API, README | Có (bên dưới); ảnh chụp màn hình (28 ảnh; còn thiếu trạng thái error, form lỗi, đăng nhập, mobile: xem `docs/screenshots/README.md`) |
 
 Khác biệt cấu trúc: các router API nằm ở `backend/app/api/v1/endpoints/` (thay vì `routers/`);
 `app/routers/` chỉ chứa `/health`. Các thư mục `models/`, `schemas/`, `services/`, `core/` đúng như đề bài.
@@ -164,12 +164,52 @@ tối đa 100), `search`, `category_id`, `min_price`, `max_price`, `sort_by` (m�
 
 ## Ảnh chụp màn hình
 
-Chưa có ảnh trong repo (người viết không chụp được trình duyệt). Đặt ảnh vào `docs/screenshots/`
-theo danh sách trong [`docs/screenshots/README.md`](docs/screenshots/README.md) rồi thay mục này bằng:
+Chụp ở chế độ Full Docker. Danh sách đầy đủ và các ảnh còn thiếu: [`docs/screenshots/README.md`](docs/screenshots/README.md).
 
-```markdown
-![Danh sách sản phẩm](docs/screenshots/shop-list.png)
-```
+**Storefront**
+
+| | |
+| --- | --- |
+| ![Trang chủ](docs/screenshots/shop-home.png) | ![Tìm kiếm](docs/screenshots/shop-search.png) |
+| Trang chủ | Tìm kiếm (giữ `search`, `page` trên URL) |
+| ![Lọc giá](docs/screenshots/shop-filter-price.png) | ![Tìm kiếm và lọc giá](docs/screenshots/shop-search-and-price-filter.png) |
+| Lọc theo khoảng giá | Kết hợp tìm kiếm và lọc giá |
+| ![Chi tiết sản phẩm](docs/screenshots/shop-product-detail.png) | ![Chưa có ảnh](docs/screenshots/shop-product-detail-no-image.png) |
+| Chi tiết sản phẩm | Sản phẩm chưa có ảnh |
+| ![Giỏ hàng](docs/screenshots/shop-cart.png) | ![Đăng ký OTP](docs/screenshots/register-otp-step.png) |
+| Giỏ hàng | Đăng ký: nhập OTP, đếm ngược, gửi lại bị khóa |
+| ![Trạng thái empty](docs/screenshots/shop-empty-state.png) | ![Trạng thái loading](docs/screenshots/shop-loading-state.png) |
+| Trạng thái empty | Trạng thái loading |
+| ![Tải thêm](docs/screenshots/shop-load-more.png) | ![Sau nhiều lần tải thêm](docs/screenshots/shop-load-more-expanded.png) |
+| Cursor pagination: "Tải thêm sản phẩm" | Danh sách sau nhiều lần tải thêm |
+| ![Đăng ký bước 1](docs/screenshots/register-details.png) | ![Đăng ký bước 2](docs/screenshots/register-otp-filled.png) |
+| Đăng ký: quy tắc mật khẩu, hiện/ẩn mật khẩu | Đăng ký: nhập OTP |
+| ![Email OTP](docs/screenshots/otp-email.png) | ![Đổi mật khẩu](docs/screenshots/change-password.png) |
+| Email OTP gửi qua Resend | Đổi mật khẩu |
+
+**Quản trị (ADMIN)**
+
+| | |
+| --- | --- |
+| ![Danh sách sản phẩm](docs/screenshots/admin-products-sort-pagination.png) | ![Xác nhận xóa](docs/screenshots/admin-products-delete-confirm.png) |
+| Sắp xếp và phân trang | Modal xác nhận xóa |
+| ![Form chỉnh sửa](docs/screenshots/admin-product-edit-form.png) | ![Chi tiết và toast](docs/screenshots/admin-product-detail-toast.png) |
+| Form chỉnh sửa sản phẩm | Chi tiết sản phẩm và toast |
+| ![Danh mục](docs/screenshots/admin-categories.png) | ![Người dùng](docs/screenshots/admin-users.png) |
+| Quản lý danh mục | Quản lý người dùng |
+| ![Phiên của người dùng](docs/screenshots/admin-user-sessions.png) | ![Phiên của tôi](docs/screenshots/account-sessions.png) |
+| Phiên đăng nhập của một người dùng | Phiên đăng nhập của tôi |
+
+**API, cache và Docker**
+
+![Swagger UI](docs/screenshots/swagger-docs.png)
+
+| | |
+| --- | --- |
+| ![X-Cache MISS](docs/screenshots/cache-miss-devtools.png) | ![X-Cache HIT](docs/screenshots/cache-hit-devtools.png) |
+| `X-Cache: MISS` (lần đầu) | `X-Cache: HIT` (lần sau) |
+
+![docker compose ps](docs/screenshots/docker-compose-ps.png)
 
 ## Hai chế độ chạy
 
