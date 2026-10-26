@@ -8,24 +8,24 @@ version = "0.1.0"
 description = "FastAPI foundation for Product Catalog"
 requires-python = ">=3.11"
 dependencies = [
-  "alembic",
-  "fastapi",
-  "minio",
-  "Pillow",
-  "pydantic-settings",
-  "pwdlib[argon2]",
-  "PyJWT",
-  "psycopg[binary]",
-  "python-multipart",
-  "redis",
-  "sqlalchemy>=2.0",
-  "uvicorn[standard]",
+  "alembic==1.20.1",
+  "fastapi==0.161.1",
+  "minio==7.2.20",
+  "Pillow==13.0.0",
+  "pydantic-settings==2.16.1",
+  "pwdlib[argon2]==0.3.1",
+  "PyJWT==2.15.1",
+  "psycopg[binary]==3.3.6",
+  "python-multipart==0.0.32",
+  "redis==8.1.0",
+  "sqlalchemy==2.1.6",
+  "uvicorn[standard]==0.54.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "httpx",
-  "pytest",
+  "httpx==0.28.1",
+  "pytest==9.1.1",
 ]
 
 [tool.hatch.build.targets.wheel]
