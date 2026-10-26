@@ -48,7 +48,7 @@ export function CartPage() {
     return <section className="storefront-container store-state"><h1>Không thể tải giỏ hàng</h1><p role="alert">{error}</p><button type="button" onClick={() => void refresh().catch(() => undefined)}>Thử lại</button></section>;
   }
   if (cart.items.length === 0) {
-    return <section className="storefront-container store-state"><ShoppingBag size={30} aria-hidden="true" /><h1>Giỏ hàng đang trống</h1><p>Hãy khám phá catalog và thêm sản phẩm phù hợp với bạn.</p><Link className="store-primary" to="/shop">Xem sản phẩm</Link></section>;
+    return <section className="storefront-container store-state"><ShoppingBag size={30} aria-hidden="true" /><h1>Giỏ hàng đang trống</h1><p>Hãy khám phá catalog và thêm sản phẩm phù hợp với bạn.</p><Link className="store-primary" to="/shop" style={{ color: "#fff" }}>Xem sản phẩm</Link></section>;
   }
   return (
     <section className="storefront-container cart-page">
