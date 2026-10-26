@@ -13,6 +13,7 @@ from app.core.cache import (
     get_redis,
     invalidate_product_detail_cache,
     invalidate_product_list_cache,
+    product_cursor_cache_key,
     product_detail_cache_key,
     product_list_cache_key,
     set_cached_model,
@@ -126,10 +127,23 @@ def list_products(
 @router.get("/cursor", response_model=ProductCursorResponse)
 def list_products_by_cursor(
     query: Annotated[ProductCursorQuery, Query()],
+    response: Response,
     db: Session = Depends(get_db),
+    redis: Redis | None = Depends(get_redis),
     _: None = Depends(limit_public_search),
 ) -> ProductCursorResponse:
-    return product_service.list_products_by_cursor(db, query)
+    # The key holds the filters and the exact cursor string. Only successful (so valid) requests
+    # are cached, and a cursor signed for other filters maps to a different key, so it is still
+    # validated and rejected by the service.
+    cache_key = product_cursor_cache_key(redis, urlencode(query.model_dump(mode="json")))
+    cached = get_cached_model(redis, cache_key, ProductCursorResponse)
+    if cached is not None:
+        response.headers["X-Cache"] = "HIT"
+        return cached
+    result = product_service.list_products_by_cursor(db, query)
+    set_cached_model(redis, cache_key, result)
+    response.headers["X-Cache"] = "MISS"
+    return result
 
 
 @router.get("/{product_id}", response_model=ProductResponse)

@@ -33,7 +33,7 @@ pytest -v -rs          # -rs liệt kê test bị skip và lý do
 | Giỏ hàng: cô lập user, đồng thời | COVERED | `test_cart.py`, `test_cart_isolation.py` |
 | Filter, search, cursor | COVERED | `test_product_query.py`, `test_product_cursor.py`, `test_cursor_tamper.py`; giao diện: `useProductsCursor.test.tsx`, `StorefrontShopPage.test.tsx` |
 | Rate limit 429 + `Retry-After` | COVERED | `test_rate_limit.py`, `test_rate_limit_routes.py` |
-| Cache invalidation + fallback | COVERED | `test_cache.py`, `test_image_cache_race.py` |
+| Cache invalidation + fallback | COVERED | `test_cache.py`, `test_cursor_cache.py` (endpoint cursor), `test_image_cache_race.py` |
 | Security headers, trusted proxy, log, lỗi 500/422 | COVERED | `test_security_hygiene.py`, `test_rate_limit.py` |
 | Frontend ↔ backend thật (E2E trên trình duyệt) | MISSING | quyết định: không làm ở phase này |
 

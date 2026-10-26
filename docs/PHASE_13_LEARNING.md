@@ -195,11 +195,35 @@ Cách hoạt động:
   khi “Tải thêm” giữ nguyên các sản phẩm đã hiển thị, báo lỗi ngay dưới danh sách
   và nút “Thử lại” xin lại **cùng cursor**.
 - Nút bị khóa khi đang tải để không gửi trùng yêu cầu.
-- Endpoint cursor không đi qua cache Redis như endpoint offset; mỗi lần “Tải thêm”
-  là một truy vấn keyset trực tiếp. Giới hạn rate limit tìm kiếm công khai vẫn áp
-  dụng khi có `search`.
+- Endpoint cursor dùng lại cache Redis của Phase 4 (xem mục 13): “Tải thêm” lần thứ
+  hai cho cùng bộ lọc và cùng cursor là cache HIT. Giới hạn rate limit tìm kiếm công
+  khai vẫn áp dụng khi có `search`, kể cả khi trả từ cache.
 
 Kiểm tra: `frontend/src/hooks/useProductsCursor.test.tsx`,
 `frontend/src/pages/StorefrontShopPage.test.tsx` và test key trong
 `frontend/src/api/queryKeys.test.ts`. Backend giữ nguyên các test cursor của
 Phase 13 và `test_cursor_tamper.py` (Phase 15).
+
+## 13. Redis cache cho endpoint cursor
+
+Ban đầu endpoint cursor (Phase 13) không đi qua cache nên bỏ sót cơ chế của
+Phase 4. Nay nó dùng cùng mô hình cache-aside, TTL 60 giây và header `X-Cache:
+HIT/MISS`:
+
+- **Key** gồm version danh sách, tiền tố `cursor:` và toàn bộ tham số đã chuẩn hóa
+  (`limit`, `search`, `category_id`, giá, và **chuỗi cursor**). Mỗi trang là một
+  entry riêng; tiền tố giữ key cursor tách khỏi key của endpoint offset (hai
+  response có hình dạng khác nhau: cursor không có `total`).
+- **Invalidation** dùng chung `LIST_VERSION_KEY` với danh sách offset. Mọi thao tác
+  đã tăng version (tạo, sửa, xóa sản phẩm, upload/xóa ảnh) tự làm cũ cả các trang
+  cursor, nên không phải thêm đường invalidation nào. Mutation lỗi không đổi cache.
+- **Bảo mật cursor không bị cache vượt qua.** Chỉ response thành công mới được lưu,
+  nên chỉ cursor hợp lệ mới có entry. Cursor giả hoặc cursor cấp cho bộ lọc khác
+  tạo ra key khác chưa từng được lưu, nên vẫn đi vào service và bị từ chối 400. Giới
+  hạn: nếu xoay `PRODUCT_CURSOR_HMAC_KEY` khi Redis vẫn giữ entry, cursor cũ có thể
+  còn được trả từ cache tối đa 60 giây.
+- **Redis lỗi:** rơi về PostgreSQL, `X-Cache: MISS`, giống endpoint offset.
+
+Kiểm tra: `backend/tests/test_cursor_cache.py` (HIT/MISS theo filter và cursor,
+không đụng key offset, invalidation sau tạo/PATCH/PUT/xóa, mutation lỗi giữ cache,
+cursor sai không được cache, fallback khi Redis lỗi, rate limit vẫn áp dụng).

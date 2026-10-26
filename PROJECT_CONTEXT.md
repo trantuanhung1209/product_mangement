@@ -70,7 +70,7 @@ product_mangement/
 
 **Request thông thường:**
 endpoint → service → SQLAlchemy → PostgreSQL.
-Product list và detail có cache Redis, fallback PostgreSQL khi Redis lỗi.
+Product list, detail và các trang cursor có cache Redis, fallback PostgreSQL khi Redis lỗi.
 
 **Xác thực và phiên:**
 - `POST /api/v1/auth/login` cấp access JWT (15 phút) và refresh token (7 ngày) trong HttpOnly cookie, cùng một session Redis.

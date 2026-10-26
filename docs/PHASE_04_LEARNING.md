@@ -59,3 +59,10 @@ Product response hiện chỉ có `category_id`, không nhúng tên hay descript
 của Category. Vì vậy sửa/xóa Category không làm thay đổi payload product đã
 cache và không cần invalidation product cache ở phase này. Nếu response sau
 này thêm dữ liệu Category, mutation Category phải tăng cache version tương tự.
+
+## Cache cho endpoint cursor (bổ sung)
+
+Endpoint `GET /products/cursor` của Phase 13 cũng đi qua cache này: cùng
+cache-aside, TTL và `LIST_VERSION_KEY`, nên mọi invalidation của danh sách đã có
+tự áp dụng cho các trang cursor. Key chứa thêm chuỗi cursor và tiền tố `cursor:`.
+Chi tiết ở `PHASE_13_LEARNING.md` mục 13.
