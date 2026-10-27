@@ -592,19 +592,44 @@ Nếu API Products trả `total: 0`, hãy tạo dữ liệu theo bước 4. Nế
 
 ## Tài liệu học
 
-- [Phase 00 — Foundation](docs/PHASE_00_FOUNDATION.md)
+Mỗi phase có một tài liệu giải thích khái niệm, quyết định thiết kế, cách kiểm tra và giới hạn. Đọc theo thứ tự
+nếu muốn đi từ nền tảng lên; hoặc nhảy thẳng tới nhóm bạn quan tâm. Tổng quan dự án: [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md).
+
+**Đề bài**
+- [Đề bài thực tập — Product Catalog](docs/ThucHanh-Tuan2.md)
+
+**Nền tảng và backend**
+- [Phase 00 — Foundation](docs/PHASE_00_FOUNDATION.md) ([báo cáo](docs/PHASE_00_REPORT.md))
 - [Phase 00B — Request lifecycle](docs/PHASE_00B_LEARNING.md)
-- [Phase 01 — Database](docs/PHASE_01_LEARNING.md)
-- [Phase 02 — REST API](docs/PHASE_02_LEARNING.md)
-- [Phase 03 — Product query](docs/PHASE_03_LEARNING.md)
+- [Phase 01 — Database](docs/PHASE_01_LEARNING.md) ([báo cáo](docs/PHASE_01_REPORT.md))
+- [Phase 02 — REST API](docs/PHASE_02_LEARNING.md) ([báo cáo](docs/PHASE_02_REPORT.md))
+- [Phase 03 — Product query: phân trang, tìm kiếm, lọc, sắp xếp](docs/PHASE_03_LEARNING.md)
 - [Phase 04 — Redis caching](docs/PHASE_04_LEARNING.md)
+- [Phase 13 — Cursor pagination](docs/PHASE_13_LEARNING.md)
+
+**Frontend**
 - [Phase 05 — Frontend](docs/PHASE_05_LEARNING.md)
 - [Phase 06 — Product CRUD frontend](docs/PHASE_06_LEARNING.md)
-- [Phase 07 — Seed data & testing](docs/PHASE_07_LEARNING.md)
+- [Phase 10 — Public storefront](docs/PHASE_10_LEARNING.md)
+- [Phase 11 — Shopping cart](docs/PHASE_11_LEARNING.md)
+- [Phase 14 — TanStack Query](docs/PHASE_14_LEARNING.md)
+- [Cải thiện UI/UX: cuộn mượt, lọc không giật, xóa bộ lọc, rà soát](docs/UI_UX_POLISH.md)
+
+**Xác thực và bảo mật**
 - [Phase 08 — JWT authentication & RBAC](docs/PHASE_08_LEARNING.md)
-- [Phase 08B — Refresh token & Redis session](docs/PHASE_08B_LEARNING.md)
-- [Phase 08C — Session management](docs/PHASE_08C_LEARNING.md)
-- [Phase 09 — Image processing](docs/PHASE_09_LEARNING.md)
-- [Phase 11 — Shopping Cart](docs/PHASE_11_LEARNING.md)
+- [Phase 08B — Refresh token, Redis session và CSRF](docs/PHASE_08B_LEARNING.md)
+- [Phase 08C — Quản lý phiên đăng nhập](docs/PHASE_08C_LEARNING.md)
+- [Phase 08D — JWT access token blacklist](docs/PHASE_08D_LEARNING.md)
 - [Phase 12 — Rate limiting & security hardening](docs/PHASE_12_LEARNING.md)
-- [Phase 13 — Cursor pagination](docs/PHASE_13_LEARNING.md)
+- [Phase 17 — Đăng ký bằng OTP qua email](docs/PHASE_17_REGISTRATION.md)
+- [Phase 18 — Quên mật khẩu và đổi mật khẩu](docs/PHASE_18_PASSWORD.md)
+- [Rà soát secret và cấu hình bảo mật](docs/SECURITY_SECRETS_AUDIT.md)
+
+**Ảnh, dữ liệu và kiểm thử**
+- [Phase 07 — Seed data & testing](docs/PHASE_07_LEARNING.md)
+- [Phase 09 — Xử lý ảnh sản phẩm](docs/PHASE_09_LEARNING.md)
+- [Phase 15 — Integration testing và rà soát rủi ro](docs/PHASE_15_TESTING.md)
+
+**Đóng gói và triển khai**
+- [Phase 16 — Docker và Nginx](docs/PHASE_16_DOCKER.md) (gồm cách chạy script seed/admin trong container)
+- Ảnh chụp màn hình: [`docs/screenshots/`](docs/screenshots/README.md)
