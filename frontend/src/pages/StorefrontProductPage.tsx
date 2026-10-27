@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, ImageOff, PackageCheck, ShoppingCart } from "lucide-react";
+import { ArrowLeft, ArrowRight, PackageCheck, ShoppingCart } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { apiAssetUrl } from "../api/client";
@@ -9,6 +9,7 @@ import { QuantityControl } from "../components/storefront/QuantityControl";
 import { useToast } from "../components/feedback/Toast";
 import { useCategories } from "../hooks/useCategories";
 import { useProduct } from "../hooks/useProduct";
+import { defaultProductImage } from "../utils/defaultProductImage";
 import { formatPrice } from "../utils/format";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
@@ -89,9 +90,7 @@ export function StorefrontProductPage() {
           {product.image_url ? (
             <img src={apiAssetUrl(product.image_url)} alt={product.name} />
           ) : (
-            <span>
-              <ImageOff size={34} aria-hidden="true" /> Chưa có hình ảnh
-            </span>
+            <img src={defaultProductImage(product.id)} alt={product.name} data-default-image="true" />
           )}
         </div>
         <div className="store-detail-copy">

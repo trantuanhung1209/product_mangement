@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ImageOff, LoaderCircle, ShoppingBag, Trash2 } from "lucide-react";
+import { LoaderCircle, ShoppingBag, Trash2 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { apiAssetUrl } from "../api/client";
@@ -8,6 +8,7 @@ import { useCart } from "../cart/CartContext";
 import { QuantityControl } from "../components/storefront/QuantityControl";
 import { useToast } from "../components/feedback/Toast";
 import type { CartItem } from "../types/catalog";
+import { defaultProductImage } from "../utils/defaultProductImage";
 import { formatPrice } from "../utils/format";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
@@ -73,7 +74,7 @@ function CartRow({ item }: { item: CartItem }) {
     try { await removeItem(item.product_id); showToast(`Đã xóa ${item.name} khỏi giỏ hàng.`); } catch (requestError) { showToast(requestError instanceof Error ? requestError.message : "Không thể xóa sản phẩm.", "error"); } finally { setPending(false); }
   };
   const canUpdate = item.available_stock > 0;
-  return <article className="cart-row"><Link className="cart-image" to={`/shop/${item.product_id}`}>{item.image_url ? <img src={apiAssetUrl(item.image_url)} alt={item.name} /> : <ImageOff size={24} aria-label="Chưa có ảnh" />}</Link><div className="cart-item-copy"><h2><Link to={`/shop/${item.product_id}`}>{item.name}</Link></h2><p>{formatPrice(item.unit_price)} / sản phẩm</p>{!item.is_available && <span className="cart-stock-warning" role="alert">Tồn kho hiện tại chỉ còn {item.available_stock}.</span>}</div><QuantityControl value={item.quantity} max={Math.max(1, item.available_stock)} disabled={pending || !canUpdate} onChange={updateQuantity} /><strong>{formatPrice(item.line_total)}</strong><button className="cart-remove" type="button" onClick={remove} disabled={pending} aria-label={`Xóa ${item.name} khỏi giỏ hàng`}><Trash2 size={18} aria-hidden="true" /></button></article>;
+  return <article className="cart-row"><Link className="cart-image" to={`/shop/${item.product_id}`}>{item.image_url ? <img src={apiAssetUrl(item.image_url)} alt={item.name} /> : <img src={defaultProductImage(item.product_id)} alt={item.name} data-default-image="true" />}</Link><div className="cart-item-copy"><h2><Link to={`/shop/${item.product_id}`}>{item.name}</Link></h2><p>{formatPrice(item.unit_price)} / sản phẩm</p>{!item.is_available && <span className="cart-stock-warning" role="alert">Tồn kho hiện tại chỉ còn {item.available_stock}.</span>}</div><QuantityControl value={item.quantity} max={Math.max(1, item.available_stock)} disabled={pending || !canUpdate} onChange={updateQuantity} /><strong>{formatPrice(item.line_total)}</strong><button className="cart-remove" type="button" onClick={remove} disabled={pending} aria-label={`Xóa ${item.name} khỏi giỏ hàng`}><Trash2 size={18} aria-hidden="true" /></button></article>;
 }
 
 function CartLoading() {
